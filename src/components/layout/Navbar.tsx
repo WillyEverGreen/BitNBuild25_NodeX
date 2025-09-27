@@ -70,7 +70,7 @@ const Navbar: React.FC = () => {
                 
                 {user.type === 'student' ? (
                   <>
-                    <NavLink to="/dashboard" icon={User}>Dashboard</NavLink>
+                    <NavLink to="/student-dashboard" icon={User}>Dashboard</NavLink>
                     <NavLink to="/projects" icon={Briefcase}>Projects</NavLink>
                     <NavLink to="/my-bids" icon={Briefcase}>My Bids</NavLink>
                   </>
@@ -147,7 +147,7 @@ const Navbar: React.FC = () => {
                   
                   {user.type === 'student' ? (
                     <>
-                      <NavLink to="/dashboard" icon={User}>Dashboard</NavLink>
+                      <NavLink to="/student-dashboard" icon={User}>Dashboard</NavLink>
                       <NavLink to="/projects" icon={Briefcase}>Projects</NavLink>
                       <NavLink to="/my-bids" icon={Briefcase}>My Bids</NavLink>
                     </>

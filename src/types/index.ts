@@ -79,7 +79,6 @@ export interface PortfolioItem {
 
 export interface Badge {
   id: string;
-  name: string;
   description: string;
   icon: string;
   earned_at: string;
@@ -93,6 +92,7 @@ export interface Message {
   timestamp: string;
   read: boolean;
   attachments?: string[];
+  conversation_id?: string;
 }
 
 export interface Notification {

@@ -7,10 +7,11 @@ import SetupPage from "./components/SetupPage";
 import LocalStorageTest from "./components/SupabaseTest";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import CompanyDashboard from "./components/dashboard/CompanyDashboard";
+import DashboardRedirect from "./components/dashboard/DashboardRedirect";
 import ProjectBrowser from "./components/projects/ProjectBrowser";
 import ProjectDetail from "./components/projects/ProjectDetail";
 import ProjectBids from "./components/projects/ProjectBids";
-import ChatInterface from "./components/chat/ChatInterface";
+import EnhancedChatInterface from "./components/chat/EnhancedChatInterface";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
 import MyBids from "./components/pages/MyBids";
@@ -35,7 +36,8 @@ function App() {
             {/* Protected routes with navbar */}
             <Route path="/" element={<Layout />}>
               <Route index element={<HomePage />} />
-              <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="dashboard" element={<DashboardRedirect />} />
+              <Route path="student-dashboard" element={<StudentDashboard />} />
               <Route path="company-dashboard" element={<CompanyDashboard />} />
               <Route path="projects" element={<ProjectBrowser />} />
               <Route path="projects/:id" element={<ProjectDetail />} />
@@ -45,7 +47,7 @@ function App() {
               <Route path="post-project" element={<PostProject />} />
               <Route path="profile" element={<Profile />} />
               <Route path="messages" element={<Messages />} />
-              <Route path="chat" element={<ChatInterface />} />
+              <Route path="chat" element={<EnhancedChatInterface />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

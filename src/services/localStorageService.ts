@@ -293,6 +293,113 @@ export const updateBid = async (
   return bids[bidIndex];
 };
 
+// Message Management
+export const createMessage = async (
+  messageData: Omit<Message, "id" | "timestamp">
+): Promise<Message> => {
+  const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
+
+  const newMessage: Message = {
+    ...messageData,
+    id: generateId(),
+    timestamp: new Date().toISOString(),
+  };
+
+  messages.push(newMessage);
+  saveToStorage(STORAGE_KEYS.MESSAGES, messages);
+
+  return newMessage;
+};
+
+export const getMessagesByConversation = async (
+  conversationId: string
+): Promise<Message[]> => {
+  const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
+  return messages
+    .filter((message) => {
+      // Handle both old format (sender_id + receiver_id) and new format (conversation_id)
+      if (message.conversation_id) {
+        return message.conversation_id === conversationId;
+      }
+      // For backward compatibility, create conversation ID from sender/receiver
+      const msgConversationId = [message.sender_id, message.receiver_id].sort().join('_');
+      return msgConversationId === conversationId;
+    })
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+};
+
+export const getConversationsByUser = async (userId: string): Promise<any[]> => {
+  const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
+  const users = getFromStorage<Student | Company>(STORAGE_KEYS.USERS);
+  
+  // Group messages by conversation
+  const conversationMap = new Map();
+  
+  messages.forEach(message => {
+    let conversationId: string;
+    let participantId: string;
+    
+    if (message.conversation_id) {
+      conversationId = message.conversation_id;
+      participantId = message.sender_id === userId ? message.receiver_id : message.sender_id;
+    } else {
+      // Backward compatibility
+      conversationId = [message.sender_id, message.receiver_id].sort().join('_');
+      participantId = message.sender_id === userId ? message.receiver_id : message.sender_id;
+    }
+    
+    // Only include conversations involving the current user
+    if (message.sender_id === userId || message.receiver_id === userId) {
+      if (!conversationMap.has(conversationId)) {
+        const participant = users.find(u => u.id === participantId);
+        conversationMap.set(conversationId, {
+          id: conversationId,
+          participant_id: participantId,
+          participant_name: participant?.name || 'Unknown User',
+          participant_type: participant?.type || 'student',
+          last_message: message.content,
+          last_message_time: message.timestamp,
+          unread_count: 0,
+          messages: []
+        });
+      }
+      
+      const conversation = conversationMap.get(conversationId);
+      conversation.messages.push(message);
+      
+      // Update last message if this is newer
+      if (new Date(message.timestamp) > new Date(conversation.last_message_time)) {
+        conversation.last_message = message.content;
+        conversation.last_message_time = message.timestamp;
+      }
+      
+      // Count unread messages
+      if (!message.read && message.receiver_id === userId) {
+        conversation.unread_count++;
+      }
+    }
+  });
+  
+  // Convert map to array and sort by last message time
+  return Array.from(conversationMap.values())
+    .sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime());
+};
+
+export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<void> => {
+  const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
+  
+  const updatedMessages = messages.map(message => {
+    if (message.receiver_id === userId && 
+        (message.conversation_id === conversationId || 
+         [message.sender_id, message.receiver_id].sort().join('_') === conversationId)) {
+      return { ...message, read: true };
+    }
+    return message;
+  });
+  
+  saveToStorage(STORAGE_KEYS.MESSAGES, updatedMessages);
+};
+
 // Notification Management
 export const createNotification = async (
   notificationData: Omit<Notification, "id" | "created_at">
@@ -339,25 +446,6 @@ export const markNotificationAsRead = async (
     notifications[notificationIndex].read = true;
     saveToStorage(STORAGE_KEYS.NOTIFICATIONS, notifications);
   }
-};
-
-// Message Management
-export const createMessage = async (
-  messageData: Omit<Message, "id" | "timestamp">
-): Promise<Message> => {
-  const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
-
-  const newMessage: Message = {
-    ...messageData,
-    id: generateId(),
-    timestamp: new Date().toISOString(),
-    read: false,
-  };
-
-  messages.push(newMessage);
-  saveToStorage(STORAGE_KEYS.MESSAGES, messages);
-
-  return newMessage;
 };
 
 export const getMessagesByUsers = async (
@@ -642,5 +730,47 @@ export const initializeSampleData = () => {
     const existingUsers = getFromStorage<Student | Company>(STORAGE_KEYS.USERS);
     const allUsers = [...existingUsers, ...additionalStudents];
     saveToStorage(STORAGE_KEYS.USERS, allUsers);
+
+    // Create sample messages for testing chat
+    const sampleMessages: Message[] = [
+      {
+        id: "msg1",
+        sender_id: "company1",
+        receiver_id: "student1",
+        content: "Hi John! I'm interested in your bid for the e-commerce project. Can we discuss the timeline?",
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+        read: true,
+        conversation_id: "company1_student1"
+      },
+      {
+        id: "msg2",
+        sender_id: "student1",
+        receiver_id: "company1",
+        content: "Hello! Yes, I'd be happy to discuss. I can start immediately and deliver within 25 days as mentioned in my proposal.",
+        timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(), // 1.5 hours ago
+        read: true,
+        conversation_id: "company1_student1"
+      },
+      {
+        id: "msg3",
+        sender_id: "company1",
+        receiver_id: "student1",
+        content: "Great! What's your approach for the payment integration? We need Stripe and PayPal support.",
+        timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+        read: false,
+        conversation_id: "company1_student1"
+      },
+      {
+        id: "msg4",
+        sender_id: "student2",
+        receiver_id: "company1",
+        content: "Hi! I noticed you posted the e-commerce project. I have some questions about the design requirements.",
+        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+        read: false,
+        conversation_id: "company1_student2"
+      }
+    ];
+
+    saveToStorage(STORAGE_KEYS.MESSAGES, sampleMessages);
   }
 };

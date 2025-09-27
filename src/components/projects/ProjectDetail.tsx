@@ -141,11 +141,14 @@ const ProjectDetail: React.FC = () => {
                   <p className="text-lg font-bold text-gray-900">{project.duration}</p>
                   <p className="text-sm text-gray-600">Duration</p>
                 </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <Users className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-900">{project.bids_count}</p>
-                  <p className="text-sm text-gray-600">Bids</p>
-                </div>
+                <Link 
+                  to={`/projects/${project.id}/bids`}
+                  className="text-center p-4 bg-gray-50 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer group"
+                >
+                  <Users className="h-6 w-6 text-purple-600 mx-auto mb-2 group-hover:text-purple-700" />
+                  <p className="text-2xl font-bold text-gray-900 group-hover:text-purple-900">{project.bids_count}</p>
+                  <p className="text-sm text-gray-600 group-hover:text-purple-700">View Bids</p>
+                </Link>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <Calendar className="h-6 w-6 text-red-600 mx-auto mb-2" />
                   <p className="text-lg font-bold text-gray-900">

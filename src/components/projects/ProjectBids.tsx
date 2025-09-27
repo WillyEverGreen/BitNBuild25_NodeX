@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByProject, getProjectById, getUserById } from '../../services/localStorageService';
+import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification } from '../../services/localStorageService';
 import { Bid, Project, Student } from '../../types';
 import BackButton from '../common/BackButton';
 import { 
@@ -136,6 +136,78 @@ const ProjectBids: React.FC = () => {
     return sortBids(filterBids(bids));
   };
 
+  const handleAcceptBid = async (bidId: string, studentId: string, studentName: string) => {
+    try {
+      // Update bid status to accepted
+      await updateBid(bidId, { status: 'accepted' });
+      
+      // Reject all other bids for this project
+      const otherBids = bids.filter(bid => bid.id !== bidId);
+      await Promise.all(
+        otherBids.map(bid => updateBid(bid.id, { status: 'rejected' }))
+      );
+
+      // Create notification for the accepted student
+      await createNotification({
+        user_id: studentId,
+        type: 'project',
+        title: 'Bid Accepted! 🎉',
+        message: `Congratulations! Your bid for "${project?.title}" has been accepted. You can now start working on the project.`,
+        read: false,
+        action_url: `/projects/${id}`
+      });
+
+      // Create notifications for rejected students
+      await Promise.all(
+        otherBids.map(bid => 
+          createNotification({
+            user_id: bid.student_id,
+            type: 'project',
+            title: 'Bid Update',
+            message: `Thank you for your interest in "${project?.title}". Unfortunately, another candidate was selected for this project.`,
+            read: false,
+            action_url: `/projects`
+          })
+        )
+      );
+
+      // Reload bids to reflect changes
+      await loadProjectAndBids();
+      
+      alert(`Bid accepted! ${studentName} has been notified and can now start working on the project.`);
+    } catch (error) {
+      console.error('Error accepting bid:', error);
+      alert('Failed to accept bid. Please try again.');
+    }
+  };
+
+  const handleRejectBid = async (bidId: string, studentId: string) => {
+    try {
+      await updateBid(bidId, { status: 'rejected' });
+      
+      // Create notification for the rejected student
+      await createNotification({
+        user_id: studentId,
+        type: 'project',
+        title: 'Bid Update',
+        message: `Your bid for "${project?.title}" was not selected. Keep applying to other projects!`,
+        read: false,
+        action_url: `/projects`
+      });
+
+      await loadProjectAndBids();
+      alert('Bid rejected and student has been notified.');
+    } catch (error) {
+      console.error('Error rejecting bid:', error);
+      alert('Failed to reject bid. Please try again.');
+    }
+  };
+
+  const handleStartChat = (studentId: string, studentName: string) => {
+    // Navigate to chat with the specific student
+    navigate(`/chat?with=${studentId}&name=${studentName}&project=${project?.title}`);
+  };
+
   const getRankIcon = (index: number) => {
     switch (index) {
       case 0:
@@ -171,16 +243,8 @@ const ProjectBids: React.FC = () => {
     }
   };
 
-  if (user?.type !== 'company') {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Access Denied</h1>
-          <p className="text-gray-600">Only companies can view project bids.</p>
-        </div>
-      </div>
-    );
-  }
+  const isCompany = user?.type === 'company';
+  const isStudent = user?.type === 'student';
 
   if (loading) {
     return (
@@ -208,10 +272,12 @@ const ProjectBids: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <BackButton to="/my-projects" />
+        <BackButton to={isCompany ? "/my-projects" : "/projects"} />
         <div className="mt-4">
           <h1 className="text-3xl font-bold text-gray-900">{project.title}</h1>
-          <p className="text-gray-600 mt-2">Bids Leaderboard</p>
+          <p className="text-gray-600 mt-2">
+            {isCompany ? 'Bids Leaderboard - Manage Applications' : 'Bids Leaderboard - See Competition'}
+          </p>
         </div>
       </div>
 
@@ -385,21 +451,36 @@ const ProjectBids: React.FC = () => {
               <div className="flex justify-between items-center text-xs text-gray-500">
                 <span>Submitted: {new Date(bid.created_at).toLocaleDateString()}</span>
                 <div className="flex space-x-2">
-                  <button className="flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
+                  <button 
+                    onClick={() => handleStartChat(bid.student_id, bid.student.name)}
+                    className="flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                  >
                     <MessageSquare className="h-3 w-3 mr-1" />
                     Message
                   </button>
-                  {bid.status === 'pending' && (
+                  {isCompany && bid.status === 'pending' && (
                     <>
-                      <button className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
+                      <button 
+                        onClick={() => handleAcceptBid(bid.id, bid.student_id, bid.student.name)}
+                        className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                      >
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Accept
                       </button>
-                      <button className="flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+                      <button 
+                        onClick={() => handleRejectBid(bid.id, bid.student_id)}
+                        className="flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                      >
                         <XCircle className="h-3 w-3 mr-1" />
                         Reject
                       </button>
                     </>
+                  )}
+                  {isStudent && bid.student_id === user?.id && bid.status === 'accepted' && (
+                    <span className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      You Won!
+                    </span>
                   )}
                 </div>
               </div>
