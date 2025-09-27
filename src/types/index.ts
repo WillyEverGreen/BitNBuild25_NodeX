@@ -4,8 +4,8 @@ export interface User {
   name: string;
   avatar?: string;
   type: 'student' | 'company';
-  createdAt: string;
-  isVerified: boolean;
+  created_at: string;
+  is_verified: boolean;
 }
 
 export interface Student extends User {
@@ -16,24 +16,22 @@ export interface Student extends User {
   skills: string[];
   interests: string[];
   rating: number;
-  completedProjects: number;
-  totalEarnings: number;
-  resumeUploaded: boolean;
-  resumeUrl?: string;
-  portfolio: PortfolioItem[];
-  badges: Badge[];
-  availableHours: number;
+  completed_projects: number;
+  total_earnings: number;
+  resume_uploaded: boolean;
+  resume_url?: string;
+  available_hours: number;
 }
 
 export interface Company extends User {
   type: 'company';
-  companyName: string;
+  company_name: string;
   industry: string;
   website?: string;
-  contactPerson: string;
-  postedProjects: number;
-  totalSpent: number;
-  paymentMethod?: string;
+  contact_person: string;
+  posted_projects: number;
+  total_spent: number;
+  payment_method?: string;
 }
 
 export interface Project {
@@ -45,38 +43,38 @@ export interface Project {
   duration: string;
   skills: string[];
   category: string;
-  clientId: string;
-  clientName: string;
-  clientRating: number;
+  client_id: string;
+  client_name: string;
+  client_rating: number;
   status: 'open' | 'in-progress' | 'review' | 'completed' | 'cancelled';
-  bidsCount: number;
-  createdAt: string;
-  assignedTo?: string;
+  bids_count: number;
+  created_at: string;
+  assigned_to?: string;
 }
 
 export interface Bid {
   id: string;
-  projectId: string;
-  studentId: string;
-  studentName: string;
-  studentRating: number;
+  project_id: string;
+  student_id: string;
+  student_name: string;
+  student_rating: number;
   amount: number;
   proposal: string;
-  deliveryTime: number;
+  delivery_time: number;
   status: 'pending' | 'accepted' | 'rejected';
-  createdAt: string;
+  created_at: string;
 }
 
 export interface PortfolioItem {
   id: string;
-  projectId: string;
+  project_id: string;
   title: string;
   description: string;
   images: string[];
   skills: string[];
-  completedAt: string;
-  clientRating: number;
-  clientReview?: string;
+  completed_at: string;
+  client_rating: number;
+  client_review?: string;
 }
 
 export interface Badge {
@@ -84,13 +82,13 @@ export interface Badge {
   name: string;
   description: string;
   icon: string;
-  earnedAt: string;
+  earned_at: string;
 }
 
 export interface Message {
   id: string;
-  senderId: string;
-  receiverId: string;
+  sender_id: string;
+  receiver_id: string;
   content: string;
   timestamp: string;
   read: boolean;
@@ -99,21 +97,39 @@ export interface Message {
 
 export interface Notification {
   id: string;
-  userId: string;
+  user_id: string;
   type: 'bid' | 'message' | 'project' | 'payment' | 'system';
   title: string;
   message: string;
   read: boolean;
-  createdAt: string;
-  actionUrl?: string;
+  created_at: string;
+  action_url?: string;
 }
 
 export interface Transaction {
   id: string;
-  projectId: string;
+  project_id: string;
   amount: number;
   type: 'payment' | 'withdrawal' | 'refund';
   status: 'pending' | 'completed' | 'failed';
-  createdAt: string;
+  created_at: string;
   description: string;
+}
+
+export interface Opportunity {
+  id: string;
+  title: string;
+  description: string;
+  budget: number;
+  deadline: string;
+  duration: string;
+  skills: string[];
+  category: string;
+  company_id: string;
+  company_name: string;
+  company_rating: number;
+  status: 'open' | 'in-progress' | 'completed' | 'cancelled';
+  bids_count: number;
+  created_at: string;
+  assigned_to?: string;
 }

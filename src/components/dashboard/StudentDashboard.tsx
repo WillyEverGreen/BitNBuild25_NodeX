@@ -1,23 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Student } from '../../types';
-import { mockProjects, mockBids } from '../../data/mockData';
+import { Student, Project, Bid } from '../../types';
+import { getProjects, getBidsByStudent } from '../../services/supabaseService';
 import { Star, DollarSign, Clock, TrendingUp, Award, Briefcase, List, Hand, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import OpportunityList from '../opportunities/OpportunityList';
 
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const student = user as Student;
+  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
+  const [recentBids, setRecentBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showOpportunities, setShowOpportunities] = useState(false);
 
-  const recommendedProjects = mockProjects.slice(0, 3);
-  const recentBids = mockBids.slice(0, 3);
+  useEffect(() => {
+    loadData();
+  }, [student?.id]);
+
+  const loadData = async () => {
+    if (!student?.id) return;
+    
+    try {
+      setLoading(true);
+      const projects = await getProjects();
+      setRecommendedProjects(projects.slice(0, 3));
+      
+      const bids = await getBidsByStudent(student.id);
+      setRecentBids(bids.slice(0, 3));
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Content Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
         </div>
         <div className="flex items-center space-x-2">
           <span className="text-lg font-semibold text-gray-900">{student.name}</span>
@@ -80,7 +103,7 @@ const StudentDashboard: React.FC = () => {
       </div>
 
       {/* Profile Completion */}
-      {!student.resumeUploaded && (
+      {!student.resume_uploaded && (
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6 mb-8">
           <div className="flex items-start">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -102,54 +125,109 @@ const StudentDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Quick Actions */}
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 mb-8 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-semibold mb-2">Find Your Next Opportunity</h3>
+            <p className="text-purple-100">Browse available projects and start earning</p>
+          </div>
+          <button
+            onClick={() => setShowOpportunities(true)}
+            className="flex items-center px-6 py-3 bg-white text-purple-600 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <Briefcase className="h-5 w-5 mr-2" />
+            Browse Opportunities
+          </button>
+        </div>
+      </div>
+
       {/* Recommended Projects Section */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Recommended Projects</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Recommended Projects</h2>
+          <button
+            onClick={() => setShowOpportunities(true)}
+            className="text-blue-600 hover:text-blue-700 font-medium"
+          >
+            View All
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {recommendedProjects.map((project) => (
-            <div key={project.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                    {project.title}
-                  </h3>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-2xl font-bold text-gray-900">${project.budget}</span>
-                    <div className="flex items-center space-x-1">
-                      <span className="text-sm text-gray-600">{project.company}</span>
-                      <HelpCircle className="h-3 w-3 text-gray-400" />
+          {loading ? (
+            <div className="col-span-3 flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : recommendedProjects.length > 0 ? (
+            recommendedProjects.map((project) => (
+              <div key={project.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      {project.title}
+                    </h3>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-2xl font-bold text-gray-900">${project.budget}</span>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm text-gray-600">{project.client_name}</span>
+                        <HelpCircle className="h-3 w-3 text-gray-400" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-4">
-                {project.skills.slice(0, 3).map((skill) => (
-                  <span
-                    key={skill}
-                    className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-sm text-gray-500">
-                  <Clock className="h-4 w-4 mr-1" />
-                  <span>{project.duration} left</span>
+                
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {project.skills.slice(0, 3).map((skill) => (
+                    <span
+                      key={skill}
+                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                    >
+                      {skill}
+                    </span>
+                  ))}
                 </div>
-                <Link
-                  to={`/projects/${project.id}`}
-                  className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  Bid Now
-                </Link>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Clock className="h-4 w-4 mr-1" />
+                    <span>{project.duration}</span>
+                  </div>
+                  <Link
+                    to={`/projects/${project.id}`}
+                    className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Bid Now
+                  </Link>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-3 text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">📋</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No projects available</h3>
+              <p className="text-gray-600">Check back later for new opportunities!</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
+
+      {/* Opportunities Modal */}
+      {showOpportunities && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Available Opportunities</h2>
+              <button
+                onClick={() => setShowOpportunities(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <OpportunityList />
+          </div>
+        </div>
+      )}
 
     </div>
   );

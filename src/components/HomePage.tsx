@@ -41,7 +41,7 @@ const HomePage: React.FC = () => {
                 Login
               </Link>
               <Link
-                to="/login"
+                to="/register"
                 className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Get Started
@@ -71,14 +71,14 @@ const HomePage: React.FC = () => {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
-                to="/login"
+                to="/register"
                 className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
               >
                 I'm a Student
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
               <Link
-                to="/login"
+                to="/register"
                 className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
               >
                 I'm a Company

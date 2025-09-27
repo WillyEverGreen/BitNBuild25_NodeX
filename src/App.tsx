@@ -4,11 +4,15 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/layout/Layout';
 import HomePage from './components/HomePage';
 import LoginForm from './components/auth/LoginForm';
+import RegisterForm from './components/auth/RegisterForm';
+import SupabaseTest from './components/SupabaseTest';
+import SetupPage from './components/SetupPage';
 import StudentDashboard from './components/dashboard/StudentDashboard';
 import CompanyDashboard from './components/dashboard/CompanyDashboard';
 import ProjectBrowser from './components/projects/ProjectBrowser';
 import ProjectDetail from './components/projects/ProjectDetail';
 import ChatInterface from './components/chat/ChatInterface';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -89,37 +93,42 @@ const Settings: React.FC = () => (
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <div className="App">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginForm />} />
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Routes>
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/projects" element={<ProjectBrowser />} />
-                      <Route path="/projects/:id" element={<ProjectDetail />} />
-                      <Route path="/my-bids" element={<MyBids />} />
-                      <Route path="/portfolio" element={<Portfolio />} />
-                      <Route path="/post-project" element={<PostProject />} />
-                      <Route path="/my-projects" element={<MyProjects />} />
-                      <Route path="/messages" element={<Messages />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="/settings" element={<Settings />} />
-                    </Routes>
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </div>
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <div className="App">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginForm />} />
+              <Route path="/register" element={<RegisterForm />} />
+              <Route path="/setup" element={<SetupPage />} />
+              <Route path="/supabase-test" element={<SupabaseTest />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Routes>
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/projects" element={<ProjectBrowser />} />
+                        <Route path="/projects/:id" element={<ProjectDetail />} />
+                        <Route path="/my-bids" element={<MyBids />} />
+                        <Route path="/portfolio" element={<Portfolio />} />
+                        <Route path="/post-project" element={<PostProject />} />
+                        <Route path="/my-projects" element={<MyProjects />} />
+                        <Route path="/messages" element={<Messages />} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="/settings" element={<Settings />} />
+                      </Routes>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </div>
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

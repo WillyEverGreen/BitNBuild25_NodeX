@@ -1,18 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { mockProjects } from '../../data/mockData';
 import { useAuth } from '../../contexts/AuthContext';
+import { getProjectById, createBid } from '../../services/supabaseService';
+import { Project } from '../../types';
 import { DollarSign, Clock, Users, Star, MapPin, Calendar, Send, ArrowLeft } from 'lucide-react';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
   const [bidAmount, setBidAmount] = useState('');
   const [proposal, setProposal] = useState('');
   const [deliveryDays, setDeliveryDays] = useState('');
   const [showBidForm, setShowBidForm] = useState(false);
 
-  const project = mockProjects.find(p => p.id === id);
+  useEffect(() => {
+    if (id) {
+      loadProject();
+    }
+  }, [id]);
+
+  const loadProject = async () => {
+    try {
+      setLoading(true);
+      const projectData = await getProjectById(id!);
+      setProject(projectData);
+    } catch (error) {
+      console.error('Error loading project:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   if (!project) {
     return (
@@ -27,12 +56,32 @@ const ProjectDetail: React.FC = () => {
     );
   }
 
-  const handleSubmitBid = (e: React.FormEvent) => {
+  const handleSubmitBid = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle bid submission
-    console.log('Bid submitted:', { bidAmount, proposal, deliveryDays });
-    setShowBidForm(false);
-    // Show success message
+    if (!user || user.type !== 'student' || !project) return;
+
+    try {
+      const bid = {
+        project_id: project.id,
+        student_id: user.id,
+        student_name: user.name,
+        student_rating: (user as any).rating || 5.0,
+        amount: parseInt(bidAmount),
+        proposal: proposal,
+        delivery_time: parseInt(deliveryDays),
+        status: 'pending' as const
+      };
+
+      await createBid(bid);
+      setShowBidForm(false);
+      setBidAmount('');
+      setProposal('');
+      setDeliveryDays('');
+      alert('Bid submitted successfully!');
+    } catch (error) {
+      console.error('Error submitting bid:', error);
+      alert('Failed to submit bid. Please try again.');
+    }
   };
 
   const isStudent = user?.type === 'student';
@@ -64,15 +113,15 @@ const ProjectDetail: React.FC = () => {
                   <div className="flex items-center space-x-4 text-sm text-gray-500">
                     <span className="flex items-center">
                       <MapPin className="h-4 w-4 mr-1" />
-                      {project.clientName}
+                      {project.client_name}
                     </span>
                     <span className="flex items-center">
                       <Star className="h-4 w-4 mr-1 fill-current text-yellow-500" />
-                      {project.clientRating}/5
+                      {project.client_rating}/5
                     </span>
                     <span className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      Posted {new Date(project.createdAt).toLocaleDateString()}
+                      Posted {new Date(project.created_at).toLocaleDateString()}
                     </span>
                   </div>
                 </div>
@@ -99,7 +148,7 @@ const ProjectDetail: React.FC = () => {
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <Users className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-900">{project.bidsCount}</p>
+                  <p className="text-2xl font-bold text-gray-900">{project.bids_count}</p>
                   <p className="text-sm text-gray-600">Bids</p>
                 </div>
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
@@ -143,14 +192,14 @@ const ProjectDetail: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-semibold text-lg">
-                    {project.clientName.charAt(0)}
+                    {project.client_name.charAt(0)}
                   </span>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900">{project.clientName}</h3>
+                  <h3 className="font-semibold text-gray-900">{project.client_name}</h3>
                   <div className="flex items-center text-sm text-gray-600">
                     <Star className="h-4 w-4 mr-1 fill-current text-yellow-500" />
-                    {project.clientRating}/5 rating
+                    {project.client_rating}/5 rating
                   </div>
                 </div>
               </div>

@@ -1,13 +1,32 @@
-import React, { useState } from 'react';
-import { mockProjects } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { getProjects } from '../../services/supabaseService';
+import { Project } from '../../types';
 import { Search, Filter, DollarSign, Clock, Users, Star, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ProjectBrowser: React.FC = () => {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [budgetRange, setBudgetRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      const projectsData = await getProjects();
+      setProjects(projectsData);
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const categories = ['Web Development', 'Mobile Development', 'Design', 'Data Science', 'Writing', 'Marketing'];
   const budgetRanges = [
@@ -18,7 +37,7 @@ const ProjectBrowser: React.FC = () => {
     { value: '2000+', label: '$2000+' }
   ];
 
-  const filteredProjects = mockProjects.filter(project => {
+  const filteredProjects = projects.filter(project => {
     const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          project.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || project.category === selectedCategory;
@@ -98,7 +117,7 @@ const ProjectBrowser: React.FC = () => {
       {/* Results */}
       <div className="flex items-center justify-between mb-6">
         <p className="text-gray-600">
-          Showing {filteredProjects.length} of {mockProjects.length} projects
+          Showing {filteredProjects.length} of {projects.length} projects
         </p>
         <select className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
           <option>Sort by: Newest</option>
@@ -109,8 +128,13 @@ const ProjectBrowser: React.FC = () => {
       </div>
 
       {/* Project Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredProjects.map((project) => (
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredProjects.map((project) => (
           <div key={project.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
@@ -120,11 +144,11 @@ const ProjectBrowser: React.FC = () => {
                 <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
                   <span className="flex items-center">
                     <MapPin className="h-4 w-4 mr-1" />
-                    {project.clientName}
+                    {project.client_name}
                   </span>
                   <span className="flex items-center">
                     <Star className="h-4 w-4 mr-1 fill-current text-yellow-500" />
-                    {project.clientRating}
+                    {project.client_rating}
                   </span>
                 </div>
               </div>
@@ -170,14 +194,14 @@ const ProjectBrowser: React.FC = () => {
                 </span>
                 <span className="flex items-center">
                   <Users className="h-4 w-4 mr-1" />
-                  {project.bidsCount} bids
+                  {project.bids_count} bids
                 </span>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Posted {new Date(project.createdAt).toLocaleDateString()}
+                Posted {new Date(project.created_at).toLocaleDateString()}
               </div>
               <Link
                 to={`/projects/${project.id}`}
@@ -188,9 +212,10 @@ const ProjectBrowser: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
-      {filteredProjects.length === 0 && (
+      {!loading && filteredProjects.length === 0 && (
         <div className="text-center py-12">
           <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <Search className="h-8 w-8 text-gray-400" />

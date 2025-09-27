@@ -1,23 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Company } from '../../types';
-import { mockProjects, mockBids } from '../../data/mockData';
+import { Company, Project, Bid } from '../../types';
+import { getProjectsByCompany, getBidsByProject } from '../../services/supabaseService';
 import { Plus, Users, DollarSign, Clock, TrendingUp, Eye, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import CreateOpportunity from '../opportunities/CreateOpportunity';
 
 const CompanyDashboard: React.FC = () => {
   const { user } = useAuth();
   const company = user as Company;
+  const [myProjects, setMyProjects] = useState<Project[]>([]);
+  const [recentBids, setRecentBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
 
-  const myProjects = mockProjects.filter(p => p.clientId === company.id);
-  const recentBids = mockBids.slice(0, 4);
+  useEffect(() => {
+    loadData();
+  }, [company?.id]);
+
+  const loadData = async () => {
+    if (!company?.id) return;
+    
+    try {
+      setLoading(true);
+      const projects = await getProjectsByCompany(company.id);
+      setMyProjects(projects);
+      
+      // Get bids for all projects
+      const allBids: Bid[] = [];
+      for (const project of projects) {
+        const projectBids = await getBidsByProject(project.id);
+        allBids.push(...projectBids);
+      }
+      setRecentBids(allBids.slice(0, 4));
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpportunityCreated = () => {
+    setShowCreateOpportunity(false);
+    loadData(); // Reload data to show new project
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {company.contactPerson}!
+          Welcome back, {company.contact_person}!
         </h1>
         <p className="mt-2 text-lg text-gray-600">
           Manage your projects and connect with talented students
@@ -45,7 +78,7 @@ const CompanyDashboard: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Spent</p>
-              <p className="text-2xl font-bold text-gray-900">${company.totalSpent.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">${company.total_spent.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -57,7 +90,7 @@ const CompanyDashboard: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Posted Projects</p>
-              <p className="text-2xl font-bold text-gray-900">{company.postedProjects}</p>
+              <p className="text-2xl font-bold text-gray-900">{company.posted_projects}</p>
             </div>
           </div>
         </div>
@@ -82,13 +115,13 @@ const CompanyDashboard: React.FC = () => {
             <h3 className="text-xl font-semibold mb-2">Ready to post a new project?</h3>
             <p className="text-blue-100">Connect with talented students and get your project done</p>
           </div>
-          <Link
-            to="/post-project"
+          <button
+            onClick={() => setShowCreateOpportunity(true)}
             className="flex items-center px-6 py-3 bg-white text-blue-600 font-medium rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Plus className="h-5 w-5 mr-2" />
             Post Project
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -135,7 +168,7 @@ const CompanyDashboard: React.FC = () => {
                         </span>
                         <span className="flex items-center">
                           <Users className="h-4 w-4 mr-1" />
-                          {project.bidsCount} bids
+                          {project.bids_count} bids
                         </span>
                         <span className="flex items-center">
                           <Clock className="h-4 w-4 mr-1" />
@@ -168,13 +201,13 @@ const CompanyDashboard: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
                   <p className="text-gray-600 mb-4">Start by posting your first project</p>
-                  <Link
-                    to="/post-project"
+                  <button
+                    onClick={() => setShowCreateOpportunity(true)}
                     className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Post Project
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>
@@ -191,12 +224,12 @@ const CompanyDashboard: React.FC = () => {
                 <div key={bid.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
                   <img
                     src="https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150"
-                    alt={bid.studentName}
+                    alt={bid.student_name}
                     className="w-8 h-8 rounded-full object-cover"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{bid.studentName}</p>
-                    <p className="text-xs text-gray-600">Rating: {bid.studentRating}/5</p>
+                    <p className="text-sm font-medium text-gray-900">{bid.student_name}</p>
+                    <p className="text-xs text-gray-600">Rating: {bid.student_rating}/5</p>
                     <p className="text-sm text-gray-600">${bid.amount}</p>
                   </div>
                   <div className="flex space-x-1">
@@ -216,12 +249,12 @@ const CompanyDashboard: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
             <div className="space-y-3">
-              <Link
-                to="/post-project"
+              <button
+                onClick={() => setShowCreateOpportunity(true)}
                 className="block w-full px-4 py-3 text-left text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Post New Project
-              </Link>
+              </button>
               <Link
                 to="/my-projects"
                 className="block w-full px-4 py-3 text-left text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
@@ -257,6 +290,15 @@ const CompanyDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Create Opportunity Modal */}
+      {showCreateOpportunity && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <CreateOpportunity onSuccess={handleOpportunityCreated} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
