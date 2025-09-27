@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification } from '../../services/localStorageService';
+import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage } from '../../services/localStorageService';
 import { Bid, Project, Student } from '../../types';
 import BackButton from '../common/BackButton';
 import { 
@@ -147,14 +147,24 @@ const ProjectBids: React.FC = () => {
         otherBids.map(bid => updateBid(bid.id, { status: 'rejected' }))
       );
 
+      // Create initial conversation message to establish chat
+      const conversationId = [user!.id, studentId].sort().join('_');
+      await createMessage({
+        sender_id: user!.id,
+        receiver_id: studentId,
+        content: `🎉 Congratulations ${studentName}! Your bid for "${project?.title}" has been accepted. Let's discuss the project details and get started!`,
+        read: false,
+        conversation_id: conversationId
+      });
+
       // Create notification for the accepted student
       await createNotification({
         user_id: studentId,
         type: 'project',
         title: 'Bid Accepted! 🎉',
-        message: `Congratulations! Your bid for "${project?.title}" has been accepted. You can now start working on the project.`,
+        message: `Congratulations! Your bid for "${project?.title}" has been accepted. Check your messages to start the conversation.`,
         read: false,
-        action_url: `/projects/${id}`
+        action_url: `/messages`
       });
 
       // Create notifications for rejected students
@@ -174,7 +184,7 @@ const ProjectBids: React.FC = () => {
       // Reload bids to reflect changes
       await loadProjectAndBids();
       
-      alert(`Bid accepted! ${studentName} has been notified and can now start working on the project.`);
+      alert(`Bid accepted! ${studentName} has been notified and a conversation has been started. Check your Messages tab to continue the discussion.`);
     } catch (error) {
       console.error('Error accepting bid:', error);
       alert('Failed to accept bid. Please try again.');
