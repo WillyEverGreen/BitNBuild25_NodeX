@@ -16,12 +16,6 @@ const LoginForm: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    // Validate .edu email for students
-    if (userType === 'student' && !email.endsWith('.edu')) {
-      setError('Students must use a valid .edu email address');
-      return;
-    }
-
     try {
       await login(email, password);
       navigate('/dashboard');
@@ -81,7 +75,7 @@ const LoginForm: React.FC = () => {
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address {userType === 'student' && '(.edu required)'}
+                Email address
               </label>
               <div className="mt-1 relative">
                 <input
@@ -93,7 +87,7 @@ const LoginForm: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="appearance-none relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder={userType === 'student' ? 'you@university.edu' : 'you@company.com'}
+                  placeholder={userType === 'student' ? 'you@example.com' : 'you@company.com'}
                 />
                 <Mail className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               </div>
@@ -160,7 +154,7 @@ const LoginForm: React.FC = () => {
         <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
           <h3 className="text-sm font-medium text-gray-900 mb-2">Demo Credentials:</h3>
           <div className="space-y-1 text-xs text-gray-600">
-            <p><strong>Student:</strong> john@university.edu / password</p>
+            <p><strong>Student:</strong> student@test.com / password123</p>
             <p><strong>Company:</strong> contact@techcorp.com / password</p>
           </div>
         </div>

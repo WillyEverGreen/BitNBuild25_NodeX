@@ -79,7 +79,7 @@ const LocalStorageTest: React.FC = () => {
             </h2>
             <div className="text-sm text-yellow-800 space-y-1">
               <p>
-                <strong>Student:</strong> student@test.edu / password123
+                <strong>Student:</strong> student@test.com / password123
               </p>
               <p>
                 <strong>Company:</strong> company@test.com / password123

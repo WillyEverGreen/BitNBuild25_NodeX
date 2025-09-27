@@ -9,6 +9,7 @@ import StudentDashboard from "./components/dashboard/StudentDashboard";
 import CompanyDashboard from "./components/dashboard/CompanyDashboard";
 import ProjectBrowser from "./components/projects/ProjectBrowser";
 import ProjectDetail from "./components/projects/ProjectDetail";
+import ProjectBids from "./components/projects/ProjectBids";
 import ChatInterface from "./components/chat/ChatInterface";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
@@ -38,6 +39,7 @@ function App() {
               <Route path="company-dashboard" element={<CompanyDashboard />} />
               <Route path="projects" element={<ProjectBrowser />} />
               <Route path="projects/:id" element={<ProjectDetail />} />
+              <Route path="projects/:id/bids" element={<ProjectBids />} />
               <Route path="my-bids" element={<MyBids />} />
               <Route path="my-projects" element={<MyProjects />} />
               <Route path="post-project" element={<PostProject />} />

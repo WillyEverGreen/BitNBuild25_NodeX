@@ -407,7 +407,7 @@ export const initializeSampleData = () => {
     const sampleUsers: (Student | Company)[] = [
       {
         id: "student1",
-        email: "student@test.edu",
+        email: "student@test.com",
         name: "John Student",
         type: "student",
         created_at: new Date().toISOString(),
@@ -442,7 +442,7 @@ export const initializeSampleData = () => {
 
     // Create sample passwords
     const passwords = [
-      { email: "student@test.edu", password: "password123" },
+      { email: "student@test.com", password: "password123" },
       { email: "company@test.com", password: "password123" },
     ];
     saveToStorage("bnbb_passwords", passwords);
@@ -488,5 +488,159 @@ export const initializeSampleData = () => {
     ];
 
     saveToStorage(STORAGE_KEYS.PROJECTS, sampleProjects);
+
+    // Create sample bids
+    const sampleBids: Bid[] = [
+      {
+        id: "bid1",
+        project_id: "project1",
+        student_id: "student1",
+        student_name: "John Student",
+        student_rating: 4.5,
+        amount: 1000,
+        proposal: "I have extensive experience in React and Node.js development. I can deliver a modern, responsive e-commerce website with all the features you need including payment integration, user authentication, and admin dashboard.",
+        delivery_time: 25,
+        status: "pending",
+        created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+      },
+      {
+        id: "bid2",
+        project_id: "project1",
+        student_id: "student2",
+        student_name: "Sarah Developer",
+        student_rating: 4.8,
+        amount: 1150,
+        proposal: "I'm a full-stack developer with 3+ years of experience. I specialize in React, Node.js, and MongoDB. I can create a scalable e-commerce platform with modern UI/UX design and robust backend architecture.",
+        delivery_time: 20,
+        status: "pending",
+        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+      },
+      {
+        id: "bid3",
+        project_id: "project1",
+        student_id: "student3",
+        student_name: "Mike Coder",
+        student_rating: 4.2,
+        amount: 900,
+        proposal: "Budget-friendly solution without compromising quality. I have built multiple e-commerce sites using React and Node.js. I can deliver within your timeline with all essential features.",
+        delivery_time: 30,
+        status: "pending",
+        created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+      },
+      {
+        id: "bid4",
+        project_id: "project2",
+        student_id: "student4",
+        student_name: "Emma Designer",
+        student_rating: 4.9,
+        amount: 750,
+        proposal: "I'm a UI/UX designer with expertise in mobile app design. I'll create modern, user-friendly interfaces using Figma with interactive prototypes and design systems.",
+        delivery_time: 15,
+        status: "pending",
+        created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: "bid5",
+        project_id: "project2",
+        student_id: "student5",
+        student_name: "Alex UI",
+        student_rating: 4.3,
+        amount: 850,
+        proposal: "Creative mobile app designer with focus on fitness apps. I'll deliver pixel-perfect designs with smooth user flows and modern aesthetics using Figma and Adobe XD.",
+        delivery_time: 18,
+        status: "pending",
+        created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+    ];
+
+    saveToStorage(STORAGE_KEYS.BIDS, sampleBids);
+
+    // Update project bid counts
+    const updatedProjects = sampleProjects.map(project => {
+      const projectBids = sampleBids.filter(bid => bid.project_id === project.id);
+      return { ...project, bids_count: projectBids.length };
+    });
+    saveToStorage(STORAGE_KEYS.PROJECTS, updatedProjects);
+
+    // Create additional sample students for the bids
+    const additionalStudents: Student[] = [
+      {
+        id: "student2",
+        email: "sarah@test.com",
+        name: "Sarah Developer",
+        type: "student",
+        created_at: new Date().toISOString(),
+        is_verified: true,
+        university: "Stanford University",
+        year: 4,
+        major: "Computer Science",
+        skills: ["React", "Node.js", "MongoDB", "TypeScript", "GraphQL"],
+        interests: ["Full-stack Development", "Web Development"],
+        rating: 4.8,
+        completed_projects: 12,
+        total_earnings: 8500,
+        resume_uploaded: true,
+        available_hours: 25,
+      },
+      {
+        id: "student3",
+        email: "mike@test.com",
+        name: "Mike Coder",
+        type: "student",
+        created_at: new Date().toISOString(),
+        is_verified: true,
+        university: "UC Berkeley",
+        year: 3,
+        major: "Software Engineering",
+        skills: ["React", "Node.js", "Python", "JavaScript"],
+        interests: ["Web Development", "Backend Development"],
+        rating: 4.2,
+        completed_projects: 8,
+        total_earnings: 4200,
+        resume_uploaded: true,
+        available_hours: 20,
+      },
+      {
+        id: "student4",
+        email: "emma@test.com",
+        name: "Emma Designer",
+        type: "student",
+        created_at: new Date().toISOString(),
+        is_verified: true,
+        university: "Art Center College",
+        year: 4,
+        major: "Interaction Design",
+        skills: ["UI/UX Design", "Figma", "Adobe XD", "Sketch", "Prototyping"],
+        interests: ["Mobile Design", "User Experience"],
+        rating: 4.9,
+        completed_projects: 15,
+        total_earnings: 9200,
+        resume_uploaded: true,
+        available_hours: 30,
+      },
+      {
+        id: "student5",
+        email: "alex@test.com",
+        name: "Alex UI",
+        type: "student",
+        created_at: new Date().toISOString(),
+        is_verified: true,
+        university: "RISD",
+        year: 3,
+        major: "Digital Media",
+        skills: ["UI/UX Design", "Figma", "Adobe Creative Suite", "Wireframing"],
+        interests: ["Mobile Apps", "Visual Design"],
+        rating: 4.3,
+        completed_projects: 6,
+        total_earnings: 3800,
+        resume_uploaded: true,
+        available_hours: 22,
+      }
+    ];
+
+    // Add additional students to existing users
+    const existingUsers = getFromStorage<Student | Company>(STORAGE_KEYS.USERS);
+    const allUsers = [...existingUsers, ...additionalStudents];
+    saveToStorage(STORAGE_KEYS.USERS, allUsers);
   }
 };
