@@ -133,13 +133,59 @@ const StudentDashboard: React.FC = () => {
             <p className="text-purple-100">Browse available projects and start earning</p>
           </div>
           <button
-            onClick={() => setShowOpportunities(true)}
             className="flex items-center px-6 py-3 bg-white text-purple-600 font-medium rounded-lg hover:bg-gray-50 transition-colors"
           >
             <Briefcase className="h-5 w-5 mr-2" />
             Browse Opportunities
           </button>
         </div>
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <Link
+          to="/projects"
+          className="flex items-center p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
+        >
+          <Briefcase className="h-6 w-6 text-blue-600 mr-3" />
+          <div>
+            <p className="font-medium text-gray-900">Browse Projects</p>
+            <p className="text-sm text-gray-600">Find opportunities</p>
+          </div>
+        </Link>
+        
+        <Link
+          to="/my-bids"
+          className="flex items-center p-4 bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all"
+        >
+          <Hand className="h-6 w-6 text-purple-600 mr-3" />
+          <div>
+            <p className="font-medium text-gray-900">My Bids</p>
+            <p className="text-sm text-gray-600">Track applications</p>
+          </div>
+        </Link>
+        
+        <Link
+          to="/messages"
+          className="flex items-center p-4 bg-white rounded-lg border border-gray-200 hover:border-green-300 hover:shadow-md transition-all"
+        >
+          <List className="h-6 w-6 text-green-600 mr-3" />
+          <div>
+            <p className="font-medium text-gray-900">Messages</p>
+            <p className="text-sm text-gray-600">Chat with clients</p>
+          </div>
+        </Link>
+        
+        <Link
+          to="/wallet"
+          className="flex items-center p-4 bg-white rounded-lg border border-gray-200 hover:border-yellow-300 hover:shadow-md transition-all"
+        >
+          <DollarSign className="h-6 w-6 text-yellow-600 mr-3" />
+          <div>
+            <p className="font-medium text-gray-900">Wallet</p>
+            <p className="text-sm text-gray-600">Manage earnings</p>
+          </div>
+        </Link>
       </div>
 
       {/* Recommended Projects Section */}

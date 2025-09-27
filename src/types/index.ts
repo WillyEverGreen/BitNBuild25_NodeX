@@ -106,14 +106,54 @@ export interface Notification {
   action_url?: string;
 }
 
+export interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  total_deposited: number;
+  total_withdrawn: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Transaction {
   id: string;
-  project_id: string;
+  user_id: string;
+  wallet_id: string;
   amount: number;
-  type: 'payment' | 'withdrawal' | 'refund';
-  status: 'pending' | 'completed' | 'failed';
-  created_at: string;
+  type: 'deposit' | 'withdrawal' | 'escrow_assignment' | 'escrow_release' | 'project_payment' | 'refund';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled';
   description: string;
+  project_id?: string;
+  escrow_id?: string;
+  bank_account_id?: string;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface Escrow {
+  id: string;
+  project_id: string;
+  company_id: string;
+  student_id?: string;
+  amount: number;
+  status: 'assigned' | 'locked' | 'released' | 'refunded';
+  assigned_at: string;
+  locked_at?: string;
+  released_at?: string;
+  description: string;
+}
+
+export interface BankAccount {
+  id: string;
+  user_id: string;
+  account_holder_name: string;
+  bank_name: string;
+  account_number: string;
+  routing_number: string;
+  account_type: 'checking' | 'savings';
+  is_verified: boolean;
+  created_at: string;
 }
 
 export interface Opportunity {

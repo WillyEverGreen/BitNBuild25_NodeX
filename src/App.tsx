@@ -11,7 +11,10 @@ import DashboardRedirect from "./components/dashboard/DashboardRedirect";
 import ProjectBrowser from "./components/projects/ProjectBrowser";
 import ProjectDetail from "./components/projects/ProjectDetail";
 import ProjectBids from "./components/projects/ProjectBids";
+import ProjectCompletion from "./components/projects/ProjectCompletion";
 import EnhancedChatInterface from "./components/chat/EnhancedChatInterface";
+import CompanyWallet from "./components/wallet/CompanyWallet";
+import StudentWallet from "./components/wallet/StudentWallet";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
 import MyBids from "./components/pages/MyBids";
@@ -42,12 +45,15 @@ function App() {
               <Route path="projects" element={<ProjectBrowser />} />
               <Route path="projects/:id" element={<ProjectDetail />} />
               <Route path="projects/:id/bids" element={<ProjectBids />} />
+              <Route path="projects/:id/complete" element={<ProjectCompletion />} />
               <Route path="my-bids" element={<MyBids />} />
               <Route path="my-projects" element={<MyProjects />} />
               <Route path="post-project" element={<PostProject />} />
               <Route path="profile" element={<Profile />} />
               <Route path="messages" element={<Messages />} />
               <Route path="chat" element={<EnhancedChatInterface />} />
+              <Route path="wallet" element={<StudentWallet />} />
+              <Route path="company-wallet" element={<CompanyWallet />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

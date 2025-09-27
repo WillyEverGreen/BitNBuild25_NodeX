@@ -5,6 +5,10 @@ import {
   Bid,
   Notification,
   Message,
+  Wallet,
+  Transaction,
+  Escrow,
+  BankAccount,
 } from "../types";
 
 // Utility functions for local storage
@@ -32,15 +36,18 @@ const generateId = (): string => {
 
 // Storage keys
 const STORAGE_KEYS = {
-  USERS: "bnbb_users",
-  PROJECTS: "bnbb_projects",
-  BIDS: "bnbb_bids",
-  NOTIFICATIONS: "bnbb_notifications",
-  MESSAGES: "bnbb_messages",
-  CURRENT_USER: "bnbb_current_user",
-  PORTFOLIO: "bnbb_portfolio",
-  BADGES: "bnbb_badges",
-};
+  USERS: "gigcampus_users",
+  PROJECTS: "gigcampus_projects",
+  BIDS: "gigcampus_bids",
+  MESSAGES: "gigcampus_messages",
+  NOTIFICATIONS: "gigcampus_notifications",
+  TRANSACTIONS: "gigcampus_transactions",
+  OPPORTUNITIES: "gigcampus_opportunities",
+  WALLETS: "gigcampus_wallets",
+  ESCROWS: "gigcampus_escrows",
+  BANK_ACCOUNTS: "gigcampus_bank_accounts",
+  CURRENT_USER: "gigcampus_current_user",
+} as const;
 
 // User Management
 export const createUser = async (
@@ -766,11 +773,275 @@ export const initializeSampleData = () => {
         receiver_id: "company1",
         content: "Hi! I noticed you posted the e-commerce project. I have some questions about the design requirements.",
         timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-        read: false,
-        conversation_id: "company1_student2"
+        conversation_id: "company1_student2",
+        read: false
       }
     ];
 
     saveToStorage(STORAGE_KEYS.MESSAGES, sampleMessages);
+
+    // Initialize empty wallet, escrow, and bank account storage
+    if (getFromStorage<Wallet>(STORAGE_KEYS.WALLETS).length === 0) {
+      saveToStorage(STORAGE_KEYS.WALLETS, []);
+    }
+    if (getFromStorage<Escrow>(STORAGE_KEYS.ESCROWS).length === 0) {
+      saveToStorage(STORAGE_KEYS.ESCROWS, []);
+    }
+    if (getFromStorage<BankAccount>(STORAGE_KEYS.BANK_ACCOUNTS).length === 0) {
+      saveToStorage(STORAGE_KEYS.BANK_ACCOUNTS, []);
+    }
   }
+};
+
+// Transaction Management
+export const createTransaction = async (
+  transactionData: Omit<Transaction, 'id' | 'created_at'>
+): Promise<Transaction> => {
+  const transactions = getFromStorage<Transaction>(STORAGE_KEYS.TRANSACTIONS);
+
+  const newTransaction: Transaction = {
+    ...transactionData,
+    id: generateId(),
+    created_at: new Date().toISOString(),
+  };
+
+  transactions.push(newTransaction);
+  saveToStorage(STORAGE_KEYS.TRANSACTIONS, transactions);
+  return newTransaction;
+};
+
+export const getTransactionsByUserId = async (userId: string): Promise<Transaction[]> => {
+  const transactions = getFromStorage<Transaction>(STORAGE_KEYS.TRANSACTIONS);
+  return transactions
+    .filter(transaction => transaction.user_id === userId)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+};
+
+// Escrow Management
+export const createEscrow = async (
+  escrowData: Omit<Escrow, 'id' | 'assigned_at'>
+): Promise<Escrow> => {
+  const escrows = getFromStorage<Escrow>(STORAGE_KEYS.ESCROWS);
+
+  const newEscrow: Escrow = {
+    ...escrowData,
+    id: generateId(),
+    assigned_at: new Date().toISOString(),
+  };
+
+  escrows.push(newEscrow);
+  saveToStorage(STORAGE_KEYS.ESCROWS, escrows);
+  return newEscrow;
+};
+
+export const getEscrowsByProjectId = async (projectId: string): Promise<Escrow[]> => {
+  const escrows = getFromStorage<Escrow>(STORAGE_KEYS.ESCROWS);
+  return escrows.filter(escrow => escrow.project_id === projectId);
+};
+
+export const getEscrowsByCompanyId = async (companyId: string): Promise<Escrow[]> => {
+  const escrows = getFromStorage<Escrow>(STORAGE_KEYS.ESCROWS);
+  return escrows.filter(escrow => escrow.company_id === companyId);
+};
+
+export const updateEscrowStatus = async (
+  escrowId: string,
+  status: Escrow['status'],
+  additionalData?: Partial<Escrow>
+): Promise<Escrow> => {
+  const escrows = getFromStorage<Escrow>(STORAGE_KEYS.ESCROWS);
+  const escrowIndex = escrows.findIndex(e => e.id === escrowId);
+
+  if (escrowIndex === -1) {
+    throw new Error('Escrow not found');
+  }
+
+  escrows[escrowIndex] = {
+    ...escrows[escrowIndex],
+    ...additionalData,
+    status,
+  };
+
+  if (status === 'locked') {
+    escrows[escrowIndex].locked_at = new Date().toISOString();
+  } else if (status === 'released') {
+    escrows[escrowIndex].released_at = new Date().toISOString();
+  }
+
+  saveToStorage(STORAGE_KEYS.ESCROWS, escrows);
+  return escrows[escrowIndex];
+};
+
+// Bank Account Management
+export const createBankAccount = async (
+  bankAccountData: Omit<BankAccount, 'id' | 'created_at'>
+): Promise<BankAccount> => {
+  const bankAccounts = getFromStorage<BankAccount>(STORAGE_KEYS.BANK_ACCOUNTS);
+
+  const newBankAccount: BankAccount = {
+    ...bankAccountData,
+    id: generateId(),
+    created_at: new Date().toISOString(),
+  };
+
+  bankAccounts.push(newBankAccount);
+  saveToStorage(STORAGE_KEYS.BANK_ACCOUNTS, bankAccounts);
+  return newBankAccount;
+};
+
+export const getBankAccountsByUserId = async (userId: string): Promise<BankAccount[]> => {
+  const bankAccounts = getFromStorage<BankAccount>(STORAGE_KEYS.BANK_ACCOUNTS);
+  return bankAccounts.filter(account => account.user_id === userId);
+};
+
+// Wallet Management
+export const createWallet = async (userId: string): Promise<Wallet> => {
+  const wallets = getFromStorage<Wallet>(STORAGE_KEYS.WALLETS);
+  
+  const existingWallet = wallets.find(wallet => wallet.user_id === userId);
+  if (existingWallet) {
+    return existingWallet;
+  }
+
+  const newWallet: Wallet = {
+    id: generateId(),
+    user_id: userId,
+    balance: 0,
+    total_deposited: 0,
+    total_withdrawn: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  wallets.push(newWallet);
+  saveToStorage(STORAGE_KEYS.WALLETS, wallets);
+  return newWallet;
+};
+
+export const getWalletByUserId = async (userId: string): Promise<Wallet | null> => {
+  const wallets = getFromStorage<Wallet>(STORAGE_KEYS.WALLETS);
+  return wallets.find(wallet => wallet.user_id === userId) || null;
+};
+
+export const depositFunds = async (
+  userId: string,
+  amount: number,
+  description: string = 'Wallet deposit'
+): Promise<{ wallet: Wallet; transaction: Transaction }> => {
+  if (amount <= 0) {
+    throw new Error('Deposit amount must be greater than 0');
+  }
+
+  let wallet = await getWalletByUserId(userId);
+  if (!wallet) {
+    wallet = await createWallet(userId);
+  }
+
+  const transaction = await createTransaction({
+    user_id: userId,
+    wallet_id: wallet.id,
+    amount,
+    type: 'deposit',
+    status: 'completed',
+    description,
+    completed_at: new Date().toISOString(),
+  });
+
+  const wallets = getFromStorage<Wallet>(STORAGE_KEYS.WALLETS);
+  const walletIndex = wallets.findIndex(w => w.id === wallet.id);
+  wallets[walletIndex].balance += amount;
+  wallets[walletIndex].total_deposited += amount;
+  wallets[walletIndex].updated_at = new Date().toISOString();
+  saveToStorage(STORAGE_KEYS.WALLETS, wallets);
+
+  return { wallet: wallets[walletIndex], transaction };
+};
+
+export const assignEscrowToProject = async (
+  companyId: string,
+  projectId: string,
+  amount: number,
+  description: string = 'Project escrow assignment'
+): Promise<{ escrow: Escrow; transaction: Transaction }> => {
+  if (amount <= 0) {
+    throw new Error('Escrow amount must be greater than 0');
+  }
+
+  const wallet = await getWalletByUserId(companyId);
+  if (!wallet || wallet.balance < amount) {
+    throw new Error('Insufficient wallet balance');
+  }
+
+  const escrow = await createEscrow({
+    project_id: projectId,
+    company_id: companyId,
+    amount,
+    status: 'assigned',
+    description,
+  });
+
+  const transaction = await createTransaction({
+    user_id: companyId,
+    wallet_id: wallet.id,
+    amount,
+    type: 'escrow_assignment',
+    status: 'completed',
+    description,
+    project_id: projectId,
+    escrow_id: escrow.id,
+    completed_at: new Date().toISOString(),
+  });
+
+  const wallets = getFromStorage<Wallet>(STORAGE_KEYS.WALLETS);
+  const walletIndex = wallets.findIndex(w => w.id === wallet.id);
+  wallets[walletIndex].balance -= amount;
+  wallets[walletIndex].updated_at = new Date().toISOString();
+  saveToStorage(STORAGE_KEYS.WALLETS, wallets);
+
+  return { escrow, transaction };
+};
+
+export const releaseEscrowToStudent = async (
+  escrowId: string,
+  studentId: string
+): Promise<{ escrow: Escrow; transaction: Transaction; studentWallet: Wallet }> => {
+  const escrows = getFromStorage<Escrow>(STORAGE_KEYS.ESCROWS);
+  const escrow = escrows.find(e => e.id === escrowId);
+
+  if (!escrow) {
+    throw new Error('Escrow not found');
+  }
+
+  if (escrow.status !== 'assigned' && escrow.status !== 'locked') {
+    throw new Error('Escrow cannot be released in current status');
+  }
+
+  let studentWallet = await getWalletByUserId(studentId);
+  if (!studentWallet) {
+    studentWallet = await createWallet(studentId);
+  }
+
+  const updatedEscrow = await updateEscrowStatus(escrowId, 'released', {
+    student_id: studentId,
+  });
+
+  const transaction = await createTransaction({
+    user_id: studentId,
+    wallet_id: studentWallet.id,
+    amount: escrow.amount,
+    type: 'escrow_release',
+    status: 'completed',
+    description: `Payment received for project completion`,
+    project_id: escrow.project_id,
+    escrow_id: escrowId,
+    completed_at: new Date().toISOString(),
+  });
+
+  const wallets = getFromStorage<Wallet>(STORAGE_KEYS.WALLETS);
+  const walletIndex = wallets.findIndex(w => w.id === studentWallet.id);
+  wallets[walletIndex].balance += escrow.amount;
+  wallets[walletIndex].updated_at = new Date().toISOString();
+  saveToStorage(STORAGE_KEYS.WALLETS, wallets);
+
+  return { escrow: updatedEscrow, transaction, studentWallet: wallets[walletIndex] };
 };

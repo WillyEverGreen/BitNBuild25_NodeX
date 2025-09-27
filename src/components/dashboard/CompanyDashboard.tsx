@@ -190,6 +190,14 @@ const CompanyDashboard: React.FC = () => {
                     >
                       View Bids
                     </Link>
+                    {project.status !== 'completed' && (
+                      <Link
+                        to={`/projects/${project.id}/complete`}
+                        className="px-4 py-2 bg-green-100 text-green-700 text-sm font-medium rounded-lg hover:bg-green-200 transition-colors"
+                      >
+                        Complete Project
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
@@ -266,6 +274,12 @@ const CompanyDashboard: React.FC = () => {
                 className="block w-full px-4 py-3 text-left text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Check Messages
+              </Link>
+              <Link
+                to="/company-wallet"
+                className="block w-full px-4 py-3 text-left text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Manage Wallet & Escrow
               </Link>
             </div>
           </div>

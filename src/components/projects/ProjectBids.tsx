@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage } from '../../services/localStorageService';
+import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage, getEscrowsByProjectId, updateEscrowStatus } from '../../services/localStorageService';
 import { Bid, Project, Student } from '../../types';
 import BackButton from '../common/BackButton';
 import { 
@@ -166,6 +166,27 @@ const ProjectBids: React.FC = () => {
         read: false,
         action_url: `/messages`
       });
+
+      // Assign student to existing escrows for this project
+      if (project) {
+        const projectEscrows = await getEscrowsByProjectId(project.id);
+        console.log('Found escrows for project:', projectEscrows);
+        const unassignedEscrows = projectEscrows.filter(escrow => !escrow.student_id && escrow.status === 'assigned');
+        console.log('Unassigned escrows to update:', unassignedEscrows);
+        
+        if (unassignedEscrows.length > 0) {
+          // Assign the accepted student to all unassigned escrows for this project
+          await Promise.all(
+            unassignedEscrows.map(async (escrow) => {
+              console.log(`Updating escrow ${escrow.id} with student ${studentId}`);
+              return updateEscrowStatus(escrow.id, 'locked', { student_id: studentId });
+            })
+          );
+          console.log('Escrow assignment completed');
+        } else {
+          console.log('No unassigned escrows found for this project');
+        }
+      }
 
       // Create notifications for rejected students
       await Promise.all(
