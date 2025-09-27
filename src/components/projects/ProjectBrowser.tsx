@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getProjects } from '../../services/supabaseService';
+import { getProjects } from '../../services/localStorageService';
 import { Project } from '../../types';
 import { Search, Filter, DollarSign, Clock, Users, Star, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';

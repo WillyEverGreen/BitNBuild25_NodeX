@@ -1,56 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Trophy, CheckCircle, Star, ArrowRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Users, Trophy, CheckCircle, Star, ArrowRight, Briefcase, Building } from 'lucide-react';
 
 const HomePage: React.FC = () => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <div className="flex items-center">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <div className="w-4 h-4 bg-white rounded-sm"></div>
-                </div>
-                <span className="text-xl font-bold text-gray-900">GigCampus</span>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="hidden md:flex space-x-8">
-              <Link to="/projects" className="text-gray-600 hover:text-gray-900 font-medium">
-                Browse Projects
-              </Link>
-              <a href="#how-it-works" className="text-gray-600 hover:text-gray-900 font-medium">
-                How It Works
-              </a>
-              <a href="#about" className="text-gray-600 hover:text-gray-900 font-medium">
-                About
-              </a>
-            </nav>
-
-            {/* Auth Buttons */}
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/login"
-                className="px-4 py-2 text-blue-600 font-medium hover:text-blue-700 transition-colors"
-              >
-                Login
-              </Link>
-              <Link
-                to="/register"
-                className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Hero Section */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -69,21 +26,39 @@ const HomePage: React.FC = () => {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/register"
-                className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                I'm a Student
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-              <Link
-                to="/register"
-                className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-              >
-                I'm a Company
-              </Link>
-            </div>
+            {user ? (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link
+                  to={user.type === 'student' ? '/dashboard' : '/company-dashboard'}
+                  className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+                <Link
+                  to="/projects"
+                  className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  Browse Projects
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link
+                  to="/register"
+                  className="inline-flex items-center px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  I'm a Student
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+                <Link
+                  to="/register"
+                  className="inline-flex items-center px-8 py-4 bg-white text-gray-700 font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  I'm a Company
+                </Link>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-8">
@@ -137,6 +112,101 @@ const HomePage: React.FC = () => {
                   <Users className="h-16 w-16 text-blue-600" />
                 </div>
                 <p className="text-gray-600">Students working together on projects</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* How It Works Section */}
+        <div className="mt-24">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">How It Works</h2>
+            <p className="text-xl text-gray-600">Simple steps to get started</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-blue-600">1</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Sign Up</h3>
+              <p className="text-gray-600">Create your account as a student or company</p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-green-600">2</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Connect</h3>
+              <p className="text-gray-600">Browse projects or post opportunities</p>
+            </div>
+
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl font-bold text-purple-600">3</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Collaborate</h3>
+              <p className="text-gray-600">Work together and achieve great results</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div className="mt-24">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose GigCampus?</h2>
+            <p className="text-xl text-gray-600">Built for students and companies</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="space-y-6">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Briefcase className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Real Projects</h3>
+                  <p className="text-gray-600">Work on actual projects from real companies and build your portfolio</p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <Building className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Quality Talent</h3>
+                  <p className="text-gray-600">Access to verified students with proven skills and academic excellence</p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Users className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Easy Communication</h3>
+                  <p className="text-gray-600">Built-in messaging and project management tools</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">Ready to get started?</h3>
+              <p className="text-gray-600 mb-6">Join thousands of students and companies already using GigCampus</p>
+              <div className="space-y-3">
+                <Link
+                  to="/register"
+                  className="block w-full text-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Sign Up as Student
+                </Link>
+                <Link
+                  to="/register"
+                  className="block w-full text-center px-6 py-3 bg-white text-gray-700 font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+                >
+                  Sign Up as Company
+                </Link>
               </div>
             </div>
           </div>

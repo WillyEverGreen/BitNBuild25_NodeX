@@ -1,7 +1,18 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../config/supabase';
-import { getUserById, createUser, signInUser, signOutUser, getCurrentUserProfile } from '../services/supabaseService';
-import { Student, Company, User } from '../types';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import {
+  createUser,
+  signInUser,
+  signOutUser,
+  getCurrentUser,
+  initializeSampleData,
+} from "../services/localStorageService";
+import { Student, Company } from "../types";
 
 interface AuthContextType {
   user: (Student | Company) | null;
@@ -16,11 +27,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
-
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -31,72 +41,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if Supabase is properly configured
-    const checkSupabaseConfig = () => {
-      const url = import.meta.env.VITE_SUPABASE_URL || localStorage.getItem('supabase_url');
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY || localStorage.getItem('supabase_key');
-      
-      if (!url || !key || url === 'https://placeholder.supabase.co' || key === 'placeholder-key') {
-        // Only redirect if we're not already on the setup page
-        if (window.location.pathname !== '/setup') {
-          console.warn('Supabase not configured. Redirecting to setup page.');
-          window.location.href = '/setup';
-        }
-        return false;
-      }
-      return true;
-    };
-
-    if (!checkSupabaseConfig()) {
-      setLoading(false);
-      return;
-    }
-
-    // Get initial session
-    const getInitialSession = async () => {
+    const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const userData = await getCurrentUserProfile();
-          setUser(userData);
-        }
+        // Initialize sample data if needed
+        initializeSampleData();
+
+        // Check for existing user session
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
       } catch (error) {
-        console.error('Error getting initial session:', error);
+        console.error("Error initializing auth:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          try {
-            const userData = await getCurrentUserProfile();
-            setUser(userData);
-          } catch (error) {
-            console.error('Error fetching user data:', error);
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      await signInUser(email, password);
-      // User state will be updated by onAuthStateChange
+      const user = await signInUser(email, password);
+      setUser(user);
     } catch (error) {
-      console.error('Login error:', error);
+      console.error("Login error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -106,10 +75,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: any, password: string) => {
     setLoading(true);
     try {
-      await createUser(userData, password);
-      // User state will be updated by onAuthStateChange
+      const user = await createUser(userData, password);
+      setUser(user);
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error("Registration error:", error);
       throw error;
     } finally {
       setLoading(false);
@@ -121,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await signOutUser();
       setUser(null);
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       throw error;
     }
   };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getProjects, createBid } from '../../services/supabaseService';
+import { getProjects, createBid } from '../../services/localStorageService';
 import { Project, Student } from '../../types';
 
 const OpportunityList: React.FC = () => {

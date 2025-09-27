@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Company, Project, Bid } from '../../types';
-import { getProjectsByCompany, getBidsByProject } from '../../services/supabaseService';
+import { getProjectsByCompany, getBidsByProject } from '../../services/localStorageService';
 import { Plus, Users, DollarSign, Clock, TrendingUp, Eye, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CreateOpportunity from '../opportunities/CreateOpportunity';
@@ -11,7 +11,7 @@ const CompanyDashboard: React.FC = () => {
   const company = user as Company;
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [recentBids, setRecentBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
 
   useEffect(() => {

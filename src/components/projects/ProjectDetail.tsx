@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getProjectById, createBid } from '../../services/supabaseService';
+import { getProjectById, createBid } from '../../services/localStorageService';
 import { Project } from '../../types';
-import { DollarSign, Clock, Users, Star, MapPin, Calendar, Send, ArrowLeft } from 'lucide-react';
+import { DollarSign, Clock, Users, Star, MapPin, Calendar, Send } from 'lucide-react';
+import BackButton from '../common/BackButton';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -90,13 +91,7 @@ const ProjectDetail: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Back Button */}
       <div className="mb-6">
-        <Link
-          to="/projects"
-          className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to projects
-        </Link>
+        <BackButton to="/projects">Back to projects</BackButton>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -294,22 +289,16 @@ const ProjectDetail: React.FC = () => {
 
           {/* Project Categories */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Similar Projects</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Category</h3>
             <div className="space-y-3">
-              {mockProjects.filter(p => p.category === project.category && p.id !== project.id).slice(0, 3).map((similarProject) => (
-                <Link
-                  key={similarProject.id}
-                  to={`/projects/${similarProject.id}`}
-                  className="block p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <h4 className="font-medium text-gray-900 text-sm line-clamp-2 mb-1">
-                    {similarProject.title}
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    ${similarProject.budget.toLocaleString()}
-                  </p>
-                </Link>
-              ))}
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <h4 className="font-medium text-gray-900 text-sm mb-1">
+                  {project.category}
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Browse more {project.category.toLowerCase()} projects
+                </p>
+              </div>
             </div>
           </div>
 

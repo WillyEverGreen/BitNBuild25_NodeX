@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { createProject } from '../../services/supabaseService';
+import { createProject } from '../../services/localStorageService';
 import { Company } from '../../types';
 
 interface CreateOpportunityProps {

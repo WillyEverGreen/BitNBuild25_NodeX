@@ -1,111 +1,104 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../config/supabase';
-import { createUser, signInUser } from '../services/supabaseService';
+import React, { useState, useEffect } from "react";
+import {
+  getCurrentUser,
+  initializeSampleData,
+} from "../services/localStorageService";
 
-const SupabaseTest: React.FC = () => {
-  const [status, setStatus] = useState<string>('Testing Supabase connection...');
-  const [error, setError] = useState<string>('');
+const LocalStorageTest: React.FC = () => {
+  const [status, setStatus] = useState<string>(
+    "Testing localStorage connection..."
+  );
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    testSupabaseConnection();
+    testLocalStorageConnection();
   }, []);
 
-  const testSupabaseConnection = async () => {
+  const testLocalStorageConnection = async () => {
     try {
-      setStatus('Testing Supabase Auth...');
-      
-      if (!supabase) {
-        throw new Error('Supabase client is not initialized');
-      }
-      
-      setStatus('Testing Supabase Database...');
-      
-      // Test database connection
-      const { data, error: dbError } = await supabase
-        .from('users')
-        .select('count')
-        .limit(1);
-      
-      if (dbError) {
-        throw new Error(`Database error: ${dbError.message}`);
-      }
-      
-      setStatus('Supabase connection successful! ✅');
-    } catch (error: any) {
-      setError(`Supabase connection failed: ${error.message}`);
-      setStatus('Supabase connection failed ❌');
-    }
-  };
+      setStatus("Testing localStorage functionality...");
 
-  const testUserCreation = async () => {
-    try {
-      setStatus('Testing user creation...');
-      
-      const testUser = {
-        name: 'Test User',
-        email: `test${Date.now()}@example.com`,
-        type: 'student' as const,
-        university: 'Test University',
-        year: 3,
-        major: 'Computer Science',
-        skills: ['React', 'Node.js'],
-        rating: 5.0,
-        completed_projects: 0,
-        total_earnings: 0,
-        resume_uploaded: false,
-        available_hours: 20,
-        is_verified: false
-      };
+      // Initialize sample data
+      initializeSampleData();
 
-      await createUser(testUser, 'testpassword123');
-      setStatus('User creation test successful! ✅');
+      setStatus("Testing user authentication...");
+
+      // Test getting current user
+      await getCurrentUser();
+
+      setStatus("localStorage connection successful! ✅");
+      setStatus((prev) => prev + "\n🎉 Local storage is properly configured!");
+      setStatus((prev) => prev + "\n📝 Sample data has been initialized");
+      setStatus((prev) => prev + "\n🔐 Ready for user registration and login");
     } catch (error: any) {
-      setError(`User creation failed: ${error.message}`);
-      setStatus('User creation failed ❌');
+      setError(`localStorage connection failed: ${error.message}`);
+      setStatus("localStorage connection failed ❌");
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-gray-900 mb-4">Supabase Connection Test</h2>
-      
-      <div className="space-y-4">
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="font-medium">Status: {status}</p>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl w-full">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
+          🗄️ Local Storage Test
+        </h1>
+
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h2 className="text-lg font-semibold text-blue-900 mb-2">
+              Connection Status
+            </h2>
+            <pre className="text-sm text-blue-800 whitespace-pre-wrap">
+              {status}
+            </pre>
+          </div>
+
           {error && (
-            <p className="text-red-600 mt-2">Error: {error}</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h2 className="text-lg font-semibold text-red-900 mb-2">Error</h2>
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
           )}
+
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h2 className="text-lg font-semibold text-green-900 mb-2">
+              ✅ Ready to Use
+            </h2>
+            <ul className="text-sm text-green-800 space-y-1">
+              <li>• User registration and login</li>
+              <li>• Project management</li>
+              <li>• Bid system</li>
+              <li>• Real-time updates (simulated)</li>
+              <li>• Offline functionality</li>
+            </ul>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h2 className="text-lg font-semibold text-yellow-900 mb-2">
+              🔐 Test Credentials
+            </h2>
+            <div className="text-sm text-yellow-800 space-y-1">
+              <p>
+                <strong>Student:</strong> student@test.edu / password123
+              </p>
+              <p>
+                <strong>Company:</strong> company@test.com / password123
+              </p>
+            </div>
+          </div>
         </div>
-        
-        <div className="space-y-2">
-          <button
-            onClick={testSupabaseConnection}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+
+        <div className="mt-6 text-center">
+          <a
+            href="/"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Test Supabase Connection
-          </button>
-          
-          <button
-            onClick={testUserCreation}
-            className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            Test User Creation
-          </button>
-        </div>
-        
-        <div className="text-sm text-gray-600">
-          <p><strong>Supabase Config:</strong></p>
-          <ul className="list-disc list-inside mt-2">
-            <li>Client: {supabase ? '✅ Initialized' : '❌ Not initialized'}</li>
-            <li>Auth: {supabase?.auth ? '✅ Available' : '❌ Not available'}</li>
-            <li>Database: {supabase?.from ? '✅ Available' : '❌ Not available'}</li>
-          </ul>
+            ← Back to App
+          </a>
         </div>
       </div>
     </div>
   );
 };
 
-export default SupabaseTest;
-
-
+export default LocalStorageTest;

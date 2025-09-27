@@ -10,12 +10,12 @@ export const mockProjects: Project[] = [
     duration: '4 weeks',
     skills: ['React', 'Node.js', 'MongoDB', 'Stripe'],
     category: 'Web Development',
-    clientId: '2',
-    clientName: 'TechCorp Solutions',
-    clientRating: 4.9,
+    client_id: '2',
+    client_name: 'TechCorp Solutions',
+    client_rating: 4.9,
     status: 'open',
-    bidsCount: 8,
-    createdAt: '2024-01-20'
+    bids_count: 8,
+    created_at: '2024-01-20'
   },
   {
     id: '2',
@@ -26,12 +26,12 @@ export const mockProjects: Project[] = [
     duration: '3 weeks',
     skills: ['UI/UX Design', 'Figma', 'Adobe XD', 'Prototyping'],
     category: 'Design',
-    clientId: '2',
-    clientName: 'TechCorp Solutions',
-    clientRating: 4.9,
+    client_id: '2',
+    client_name: 'TechCorp Solutions',
+    client_rating: 4.9,
     status: 'open',
-    bidsCount: 12,
-    createdAt: '2024-01-18'
+    bids_count: 12,
+    created_at: '2024-01-18'
   },
   {
     id: '3',
@@ -42,12 +42,12 @@ export const mockProjects: Project[] = [
     duration: '2 weeks',
     skills: ['Python', 'Data Analysis', 'Pandas', 'Matplotlib'],
     category: 'Data Science',
-    clientId: '2',
-    clientName: 'TechCorp Solutions',
-    clientRating: 4.9,
+    client_id: '2',
+    client_name: 'TechCorp Solutions',
+    client_rating: 4.9,
     status: 'open',
-    bidsCount: 5,
-    createdAt: '2024-01-22'
+    bids_count: 5,
+    created_at: '2024-01-22'
   },
   {
     id: '4',
@@ -58,65 +58,65 @@ export const mockProjects: Project[] = [
     duration: '3 weeks',
     skills: ['Technical Writing', 'SEO', 'Content Marketing'],
     category: 'Writing',
-    clientId: '2',
-    clientName: 'TechCorp Solutions',
-    clientRating: 4.9,
+    client_id: '2',
+    client_name: 'TechCorp Solutions',
+    client_rating: 4.9,
     status: 'open',
-    bidsCount: 15,
-    createdAt: '2024-01-19'
+    bids_count: 15,
+    created_at: '2024-01-19'
   }
 ];
 
 export const mockBids: Bid[] = [
   {
     id: '1',
-    projectId: '1',
-    studentId: '1',
-    studentName: 'John Smith',
-    studentRating: 4.8,
+    project_id: '1',
+    student_id: '1',
+    student_name: 'John Smith',
+    student_rating: 4.8,
     amount: 1150,
     proposal: 'I have extensive experience building e-commerce websites with React and Node.js. I can deliver a high-quality, responsive website with all the requested features.',
-    deliveryTime: 25,
+    delivery_time: 25,
     status: 'pending',
-    createdAt: '2024-01-21'
+    created_at: '2024-01-21'
   }
 ];
 
 export const mockNotifications: Notification[] = [
   {
     id: '1',
-    userId: '1',
+    user_id: '1',
     type: 'bid',
     title: 'New Project Match',
     message: 'A new project matching your skills is available: "E-commerce Website Development"',
     read: false,
-    createdAt: '2024-01-23',
-    actionUrl: '/projects/1'
+    created_at: '2024-01-23',
+    action_url: '/projects/1'
   },
   {
     id: '2',
-    userId: '1',
+    user_id: '1',
     type: 'message',
     title: 'New Message',
     message: 'You have a new message from TechCorp Solutions',
     read: false,
-    createdAt: '2024-01-22'
+    created_at: '2024-01-22'
   }
 ];
 
 export const mockMessages: Message[] = [
   {
     id: '1',
-    senderId: '2',
-    receiverId: '1',
+    sender_id: '2',
+    receiver_id: '1',
     content: 'Hi John, I saw your bid on the e-commerce project. Can we discuss the timeline?',
     timestamp: '2024-01-23T10:30:00Z',
     read: false
   },
   {
     id: '2',
-    senderId: '1',
-    receiverId: '2',
+    sender_id: '1',
+    receiver_id: '2',
     content: 'Hello! Yes, I can definitely deliver within 25 days. Would you like to schedule a call?',
     timestamp: '2024-01-23T11:45:00Z',
     read: true

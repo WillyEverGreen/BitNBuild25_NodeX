@@ -1,23 +1,13 @@
 import React from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import Header from './Header';
+import { Outlet } from 'react-router-dom';
+import Navbar from './Navbar';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user } = useAuth();
-
-  if (!user) {
-    return <>{children}</>;
-  }
-
+const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Navbar />
       <main className="flex-1">
-        {children}
+        <Outlet />
       </main>
     </div>
   );

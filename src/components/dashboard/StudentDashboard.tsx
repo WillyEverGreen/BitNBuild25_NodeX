@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Student, Project, Bid } from '../../types';
-import { getProjects, getBidsByStudent } from '../../services/supabaseService';
-import { Star, DollarSign, Clock, TrendingUp, Award, Briefcase, List, Hand, HelpCircle } from 'lucide-react';
+import { getProjects, getBidsByStudent } from '../../services/localStorageService';
+import { Star, DollarSign, Clock, TrendingUp, Briefcase, List, Hand, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OpportunityList from '../opportunities/OpportunityList';
 
@@ -10,7 +10,7 @@ const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const student = user as Student;
   const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
-  const [recentBids, setRecentBids] = useState<Bid[]>([]);
+  const [, setRecentBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOpportunities, setShowOpportunities] = useState(false);
 

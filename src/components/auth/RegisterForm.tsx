@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, Building, GraduationCap } from 'lucide-react';
+import { User, Building, GraduationCap } from 'lucide-react';
 
 const RegisterForm: React.FC = () => {
   const { register } = useAuth();
