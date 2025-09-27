@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { updateUser } from '../../services/localStorageService';
+import { updateUser, getCurrentUser } from '../../services/localStorageService';
 import { Student, Company } from '../../types';
 import BackButton from '../common/BackButton';
+import ResumeUpload from '../resume/ResumeUpload';
 
 const Profile: React.FC = () => {
   const { user, login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showResumeUpload, setShowResumeUpload] = useState(false);
+  const [resumeAnalysis, setResumeAnalysis] = useState<any>(null);
   const [formData, setFormData] = useState(() => {
     if (!user) return { name: '', email: '' };
     
@@ -38,6 +41,38 @@ const Profile: React.FC = () => {
     }
   });
 
+  // Update form data when user changes
+  useEffect(() => {
+    if (!user) return;
+    
+    const baseData = {
+      name: user.name || '',
+      email: user.email || '',
+    };
+
+    if (user.type === 'student') {
+      const student = user as Student;
+      setFormData({
+        ...baseData,
+        university: student.university || '',
+        year: student.year || 1,
+        major: student.major || '',
+        skills: student.skills?.join(', ') || '',
+        interests: student.interests?.join(', ') || '',
+        available_hours: student.available_hours || 0,
+      });
+    } else {
+      const company = user as Company;
+      setFormData({
+        ...baseData,
+        company_name: company.company_name || '',
+        industry: company.industry || '',
+        website: company.website || '',
+        contact_person: company.contact_person || '',
+      });
+    }
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -52,10 +87,9 @@ const Profile: React.FC = () => {
         } : {})
       };
 
-      await updateUser(user.id, updateData);
-      // Refresh user data
-      await login(user.email, 'password'); // This will reload the user data
+      const updatedUser = await updateUser(user.id, updateData);
       alert('Profile updated successfully!');
+      // The useEffect will automatically update the form with the new user data
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Failed to update profile. Please try again.');
@@ -70,6 +104,17 @@ const Profile: React.FC = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleResumeSuccess = (analysis: any) => {
+    setResumeAnalysis(analysis);
+    setShowResumeUpload(false);
+    alert('Resume uploaded successfully! Your skills have been updated.');
+    // The useEffect will automatically update the form with the new user data
+  };
+
+  const handleResumeError = (error: string) => {
+    alert(error);
   };
 
   if (!user) {
@@ -127,6 +172,116 @@ const Profile: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Skills Display Section for Students */}
+          {user.type === 'student' && (
+            <div className="border-b border-gray-200 pb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Skills & Expertise</h3>
+                <span className="text-sm text-gray-500">Visible to companies</span>
+              </div>
+              
+              {/* Current Skills Display */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Current Skills
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(formData as any).skills?.split(',').map((skill: string, index: number) => {
+                    const trimmedSkill = skill.trim();
+                    if (!trimmedSkill) return null;
+                    return (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                      >
+                        {trimmedSkill}
+                      </span>
+                    );
+                  })}
+                  {(!(formData as any).skills || (formData as any).skills.trim() === '') && (
+                    <span className="text-gray-500 text-sm">No skills added yet</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Skills Input */}
+              <div>
+                <label htmlFor="skills" className="block text-sm font-medium text-gray-700 mb-2">
+                  Add/Edit Skills
+                </label>
+                <input
+                  type="text"
+                  id="skills"
+                  name="skills"
+                  value={(formData as any).skills || ''}
+                  onChange={handleChange}
+                  placeholder="JavaScript, React, Python, Node.js (comma separated)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Separate skills with commas. These will be visible to companies.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Resume Upload Section for Students */}
+          {user.type === 'student' && (
+            <div className="border-b border-gray-200 pb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">Resume Upload</h3>
+                {!showResumeUpload && (
+                  <button
+                    type="button"
+                    onClick={() => setShowResumeUpload(true)}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    {(user as Student).resume_uploaded ? 'Upload New Resume' : 'Upload Resume'}
+                  </button>
+                )}
+              </div>
+              
+              {(user as Student).resume_uploaded ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-green-800">
+                        Resume uploaded successfully
+                      </p>
+                      <p className="text-sm text-green-700">
+                        Your profile has been enhanced with AI analysis
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : showResumeUpload ? (
+                <ResumeUpload
+                  user={user as Student}
+                  onSuccess={handleResumeSuccess}
+                  onError={handleResumeError}
+                />
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                  <p className="text-gray-600 mb-4">
+                    Upload your resume to get AI-powered analysis and improve your profile rating
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowResumeUpload(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Upload Resume
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Student-specific fields */}
           {user.type === 'student' && (

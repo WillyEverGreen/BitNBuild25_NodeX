@@ -7,6 +7,7 @@ import {
   createNotification,
   updateProject
 } from '../../services/localStorageService';
+import { updateRatingOnProjectSuccess } from '../../services/ratingService';
 import { Project, Escrow } from '../../types';
 import BackButton from '../common/BackButton';
 import { DollarSign, Clock, Users, Calendar, Plus, Eye, Shield, CheckCircle } from 'lucide-react';
@@ -78,6 +79,18 @@ const MyProjects: React.FC = () => {
 
       // Update project status to completed
       await updateProject(projectId, { status: 'completed' });
+
+      // Update student rating based on project completion
+      try {
+        const project = projects.find(p => p.id === projectId);
+        if (project) {
+          await updateRatingOnProjectSuccess(escrow.student_id!, project.skills);
+          console.log('Student rating updated for project completion');
+        }
+      } catch (ratingError) {
+        console.error('Error updating student rating:', ratingError);
+        // Don't fail the completion if rating update fails
+      }
 
       // Send notification to student
       await createNotification({

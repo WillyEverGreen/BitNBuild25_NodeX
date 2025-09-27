@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Company, Project, Bid } from '../../types';
-import { getProjectsByCompany, getBidsByProject } from '../../services/localStorageService';
+import { getProjectsByCompany, getBidsByProject, getWalletByUserId, getTransactionsByUserId } from '../../services/localStorageService';
 import { Plus, Users, DollarSign, Clock, TrendingUp, Eye, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CreateOpportunity from '../opportunities/CreateOpportunity';
@@ -11,8 +11,14 @@ const CompanyDashboard: React.FC = () => {
   const company = user as Company;
   const [myProjects, setMyProjects] = useState<Project[]>([]);
   const [recentBids, setRecentBids] = useState<Bid[]>([]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
+  const [stats, setStats] = useState({
+    activeProjects: 0,
+    totalSpent: 0,
+    postedProjects: 0,
+    pendingBids: 0
+  });
 
   useEffect(() => {
     loadData();
@@ -33,6 +39,25 @@ const CompanyDashboard: React.FC = () => {
         allBids.push(...projectBids);
       }
       setRecentBids(allBids.slice(0, 4));
+      
+      // Calculate real stats
+      const activeProjects = projects.filter(p => p.status === 'open' || p.status === 'in-progress').length;
+      const postedProjects = projects.length;
+      const pendingBids = allBids.filter(bid => bid.status === 'pending').length;
+      
+      // Get transaction data for total spent
+      const transactions = await getTransactionsByUserId(company.id);
+      const totalSpent = transactions
+        .filter(t => (t.type === 'escrow_assignment' || t.type === 'project_payment') && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      setStats({
+        activeProjects,
+        totalSpent,
+        postedProjects,
+        pendingBids
+      });
+      
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -66,7 +91,7 @@ const CompanyDashboard: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Active Projects</p>
-              <p className="text-2xl font-bold text-gray-900">{myProjects.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.activeProjects}</p>
             </div>
           </div>
         </div>
@@ -78,7 +103,7 @@ const CompanyDashboard: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Spent</p>
-              <p className="text-2xl font-bold text-gray-900">${company.total_spent.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">${stats.totalSpent.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -90,7 +115,7 @@ const CompanyDashboard: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Posted Projects</p>
-              <p className="text-2xl font-bold text-gray-900">{company.posted_projects}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.postedProjects}</p>
             </div>
           </div>
         </div>
@@ -102,7 +127,7 @@ const CompanyDashboard: React.FC = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Pending Bids</p>
-              <p className="text-2xl font-bold text-gray-900">{recentBids.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.pendingBids}</p>
             </div>
           </div>
         </div>
@@ -288,18 +313,21 @@ const CompanyDashboard: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
             <div className="space-y-3">
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                New bid received on "E-commerce Website"
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                Project "Mobile App Design\" completed
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
-                Payment processed for "Data Analysis"
-              </div>
+              {recentBids.length > 0 ? (
+                recentBids.slice(0, 3).map((bid, index) => (
+                  <div key={bid.id} className="flex items-center text-sm text-gray-600">
+                    <div className={`w-2 h-2 rounded-full mr-3 ${
+                      index === 0 ? 'bg-blue-500' : 
+                      index === 1 ? 'bg-green-500' : 'bg-purple-500'
+                    }`}></div>
+                    New bid received from {bid.student_name} - ${bid.amount}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  <p>No recent activity</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

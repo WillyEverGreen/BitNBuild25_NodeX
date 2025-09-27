@@ -8,6 +8,7 @@ import {
   updateProject,
   createNotification
 } from '../../services/localStorageService';
+import { updateRatingOnProjectSuccess } from '../../services/ratingService';
 import { Project, Escrow } from '../../types';
 import { 
   CheckCircle, 
@@ -79,6 +80,15 @@ const ProjectCompletion: React.FC = () => {
 
       // Update project status to completed
       await updateProject(project.id, { status: 'completed' });
+
+      // Update student rating based on project completion
+      try {
+        await updateRatingOnProjectSuccess(escrow.student_id, project.skills);
+        console.log('Student rating updated for project completion');
+      } catch (ratingError) {
+        console.error('Error updating student rating:', ratingError);
+        // Don't fail the completion if rating update fails
+      }
 
       // Send notification to student
       await createNotification({

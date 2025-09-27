@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Student, Project, Bid } from '../../types';
-import { getProjects, getBidsByStudent } from '../../services/localStorageService';
+import { getProjects, getBidsByStudent, getWalletByUserId, getTransactionsByUserId } from '../../services/localStorageService';
 import { Star, DollarSign, Clock, TrendingUp, Briefcase, List, Hand, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OpportunityList from '../opportunities/OpportunityList';
+import RatingDisplay from '../rating/RatingDisplay';
+import RatingHistory from '../rating/RatingHistory';
 
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const student = user as Student;
   const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
-  const [, setRecentBids] = useState<Bid[]>([]);
+  const [recentBids, setRecentBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOpportunities, setShowOpportunities] = useState(false);
+  const [stats, setStats] = useState({
+    activeProjects: 0,
+    pendingBids: 0,
+    totalEarnings: 0,
+    pendingEarnings: 0
+  });
 
   useEffect(() => {
     loadData();
@@ -23,11 +31,41 @@ const StudentDashboard: React.FC = () => {
     
     try {
       setLoading(true);
-      const projects = await getProjects();
-      setRecommendedProjects(projects.slice(0, 3));
       
+      // Get all projects and filter for recommended ones
+      const allProjects = await getProjects();
+      setRecommendedProjects(allProjects.slice(0, 3));
+      
+      // Get student's bids
       const bids = await getBidsByStudent(student.id);
       setRecentBids(bids.slice(0, 3));
+      
+      // Calculate real stats
+      const pendingBids = bids.filter(bid => bid.status === 'pending').length;
+      
+      // Get wallet and transaction data for earnings
+      const wallet = await getWalletByUserId(student.id);
+      const transactions = await getTransactionsByUserId(student.id);
+      
+      // Calculate earnings from completed projects (escrow releases)
+      const completedEarnings = transactions
+        .filter(t => t.type === 'escrow_release' && t.status === 'completed')
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      // Calculate pending earnings (accepted bids that haven't been paid yet)
+      const acceptedBids = bids.filter(bid => bid.status === 'accepted');
+      const pendingEarnings = acceptedBids.reduce((sum, bid) => sum + bid.amount, 0);
+      
+      // Count active projects (projects where student has accepted bids)
+      const activeProjects = acceptedBids.length;
+      
+      setStats({
+        activeProjects,
+        pendingBids,
+        totalEarnings: completedEarnings,
+        pendingEarnings
+      });
+      
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -66,8 +104,10 @@ const StudentDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Projects</p>
-              <p className="text-3xl font-bold text-gray-900">3</p>
-              <p className="text-sm text-gray-500">2 due this week</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.activeProjects}</p>
+              <p className="text-sm text-gray-500">
+                {stats.activeProjects > 0 ? 'Currently working' : 'No active projects'}
+              </p>
             </div>
             <div className="p-3 rounded-lg bg-purple-100">
               <List className="h-6 w-6 text-purple-600" />
@@ -79,8 +119,10 @@ const StudentDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Pending Bids</p>
-              <p className="text-3xl font-bold text-gray-900">5</p>
-              <p className="text-sm text-gray-500">Awaiting response</p>
+              <p className="text-3xl font-bold text-gray-900">{stats.pendingBids}</p>
+              <p className="text-sm text-gray-500">
+                {stats.pendingBids > 0 ? 'Awaiting response' : 'No pending bids'}
+              </p>
             </div>
             <div className="p-3 rounded-lg bg-green-100">
               <Hand className="h-6 w-6 text-green-600" />
@@ -92,14 +134,22 @@ const StudentDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Earnings</p>
-              <p className="text-3xl font-bold text-gray-900">$1,250</p>
-              <p className="text-sm text-gray-500">$450 pending approval</p>
+              <p className="text-3xl font-bold text-gray-900">${stats.totalEarnings.toLocaleString()}</p>
+              <p className="text-sm text-gray-500">
+                {stats.pendingEarnings > 0 ? `$${stats.pendingEarnings.toLocaleString()} pending` : 'No pending payments'}
+              </p>
             </div>
             <div className="p-3 rounded-lg bg-green-100">
               <DollarSign className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Rating Display */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <RatingDisplay userId={student.id} showDetails={true} />
+        <RatingHistory userId={student.id} />
       </div>
 
       {/* Profile Completion */}
