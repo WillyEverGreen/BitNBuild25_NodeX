@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Company, Project, Bid } from '../../types';
-import { getProjectsByCompany, getBidsByProject, getWalletByUserId, getTransactionsByUserId } from '../../services/localStorageService';
+import { getProjectsByCompany, getBidsByProject, getWalletByUserId, getTransactionsByUserId } from '../../services/supabaseService';
 import { Plus, Users, DollarSign, Clock, TrendingUp, Eye, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CreateOpportunity from '../opportunities/CreateOpportunity';
@@ -9,16 +9,30 @@ import CreateOpportunity from '../opportunities/CreateOpportunity';
 const CompanyDashboard: React.FC = () => {
   const { user } = useAuth();
   const company = user as Company;
-  const [myProjects, setMyProjects] = useState<Project[]>([]);
-  const [recentBids, setRecentBids] = useState<Bid[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
   const [stats, setStats] = useState({
     activeProjects: 0,
-    totalSpent: 0,
-    postedProjects: 0,
-    pendingBids: 0
+    totalBids: 0,
+    completedProjects: 0,
+    totalSpent: 0
   });
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [bids, setBids] = useState<Bid[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
+
+  // Early return if user is not loaded or not a company
+  if (!user || user.type !== 'company') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h2>
+          <p className="text-gray-600">Please wait while we load your dashboard.</p>
+        </div>
+      </div>
+    );
+  }
+  const [myProjects, setMyProjects] = useState<Project[]>([]);
+  const [recentBids, setRecentBids] = useState<Bid[]>([]);
 
   useEffect(() => {
     loadData();

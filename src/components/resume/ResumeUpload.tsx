@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Star, Award, TrendingUp, Eye, EyeOff, Copy, Download } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader2, Award, TrendingUp, Eye, EyeOff, Copy, Download } from 'lucide-react';
 import { ocrService, OCRResult } from '../../services/ocrService';
 import { aiService, ResumeAnalysis } from '../../services/aiService';
 import { updateSkillsFromResume } from '../../services/ratingService';
+import { saveResumeAnalysis } from '../../services/supabaseService';
 import { Student } from '../../types';
 
 // ResumeAnalysis interface is now imported from aiService
@@ -82,8 +83,16 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ user, onSuccess, onError })
         }
       }
       
-      // Don't call onSuccess to avoid authentication issues
-      // onSuccess(analysisResult);
+      // Save resume analysis data to user profile
+      try {
+        await saveResumeAnalysis(user.id, analysisResult);
+        console.log('Resume analysis saved successfully');
+        onSuccess(analysisResult);
+      } catch (saveError) {
+        console.error('Error saving resume analysis:', saveError);
+        // Still show the analysis even if saving fails
+        onSuccess(analysisResult);
+      }
     } catch (error) {
       console.error('Error analyzing resume:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to analyze resume. Please ensure the file is a valid, readable resume.';
@@ -213,7 +222,6 @@ const ResumeUpload: React.FC<ResumeUploadProps> = ({ user, onSuccess, onError })
         </div>
 
         {/* OCR Results Section */}
-        {console.log('Rendering OCR section, ocrResult:', ocrResult)}
         {ocrResult && (
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-4">

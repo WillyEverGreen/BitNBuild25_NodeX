@@ -7,7 +7,7 @@ import {
   getConversationsByUser,
   createNotification,
   getUserById
-} from '../../services/localStorageService';
+} from '../../services/supabaseService';
 import { Message } from '../../types';
 import { 
   Search, 

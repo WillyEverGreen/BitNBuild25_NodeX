@@ -8,7 +8,7 @@ import {
   assignEscrowToProject,
   getProjectsByCompany,
   getEscrowsByCompanyId
-} from '../../services/localStorageService';
+} from '../../services/supabaseService';
 import { Wallet, Transaction, Project, Escrow } from '../../types';
 import { 
   DollarSign, 

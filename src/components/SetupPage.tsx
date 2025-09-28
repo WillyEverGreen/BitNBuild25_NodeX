@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { initializeSampleData } from "../services/localStorageService";
+import { initializeSampleData } from "../services/supabaseService";
 
 const SetupPage: React.FC = () => {
   const [status, setStatus] = useState<string>("");

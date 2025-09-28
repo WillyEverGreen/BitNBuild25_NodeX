@@ -5,6 +5,7 @@ import Layout from "./components/layout/Layout";
 import HomePage from "./components/HomePage";
 import SetupPage from "./components/SetupPage";
 import LocalStorageTest from "./components/SupabaseTest";
+import SupabaseConnectionTest from "./components/SupabaseConnectionTest";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import CompanyDashboard from "./components/dashboard/CompanyDashboard";
 import DashboardRedirect from "./components/dashboard/DashboardRedirect";
@@ -33,6 +34,7 @@ function App() {
             {/* Public routes without navbar */}
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/test" element={<LocalStorageTest />} />
+            <Route path="/supabase-test" element={<SupabaseConnectionTest />} />
             <Route path="/login" element={<LoginForm />} />
             <Route path="/register" element={<RegisterForm />} />
             

@@ -6,7 +6,7 @@ import {
   createMessage,
   markMessagesAsRead,
   createNotification
-} from '../../services/localStorageService';
+} from '../../services/supabaseService';
 import { Message } from '../../types';
 import BackButton from '../common/BackButton';
 import { 

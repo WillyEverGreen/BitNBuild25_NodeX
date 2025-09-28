@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByStudent } from '../../services/localStorageService';
+import { getBidsByStudent } from '../../services/supabaseService';
 import { Bid } from '../../types';
 import BackButton from '../common/BackButton';
 import { DollarSign, Clock, Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';

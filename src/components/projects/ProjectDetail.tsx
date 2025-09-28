@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getProjectById, createBid } from '../../services/localStorageService';
+import { getProjectById, createBid } from '../../services/supabaseService';
 import { Project } from '../../types';
 import { DollarSign, Clock, Users, Star, MapPin, Calendar, Send } from 'lucide-react';
 import BackButton from '../common/BackButton';
@@ -69,6 +69,7 @@ const ProjectDetail: React.FC = () => {
         student_rating: (user as any).rating || 5.0,
         amount: parseInt(bidAmount),
         proposal: proposal,
+        timeline: `${deliveryDays} days`,
         delivery_time: parseInt(deliveryDays),
         status: 'pending' as const
       };

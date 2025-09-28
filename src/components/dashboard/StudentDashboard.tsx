@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Student, Project, Bid } from '../../types';
-import { getProjects, getBidsByStudent, getWalletByUserId, getTransactionsByUserId } from '../../services/localStorageService';
+import { getProjects, getBidsByStudent, getWalletByUserId, getTransactionsByUserId } from '../../services/supabaseService';
 import { Star, DollarSign, Clock, TrendingUp, Briefcase, List, Hand, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OpportunityList from '../opportunities/OpportunityList';
@@ -11,16 +11,30 @@ import RatingHistory from '../rating/RatingHistory';
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const student = user as Student;
-  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
-  const [recentBids, setRecentBids] = useState<Bid[]>([]);
+  const [stats, setStats] = useState({
+    totalProjects: 0,
+    activeBids: 0,
+    completedProjects: 0,
+    totalEarnings: 0
+  });
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOpportunities, setShowOpportunities] = useState(false);
-  const [stats, setStats] = useState({
-    activeProjects: 0,
-    pendingBids: 0,
-    totalEarnings: 0,
-    pendingEarnings: 0
-  });
+
+  // Early return if user is not loaded or not a student
+  if (!user || user.type !== 'student') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Loading...</h2>
+          <p className="text-gray-600">Please wait while we load your dashboard.</p>
+        </div>
+      </div>
+    );
+  }
+  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
+  const [recentBids, setRecentBids] = useState<Bid[]>([]);
 
   useEffect(() => {
     loadData();

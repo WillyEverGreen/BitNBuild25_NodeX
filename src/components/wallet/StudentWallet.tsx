@@ -6,7 +6,7 @@ import {
   getTransactionsByUserId,
   createBankAccount,
   getBankAccountsByUserId
-} from '../../services/localStorageService';
+} from '../../services/supabaseService';
 import { Wallet, Transaction, BankAccount } from '../../types';
 import { 
   DollarSign, 

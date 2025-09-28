@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage, getEscrowsByProjectId, updateEscrowStatus } from '../../services/localStorageService';
+import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage, getEscrowsByProjectId, updateEscrowStatus } from '../../services/supabaseService';
 import { Bid, Project, Student } from '../../types';
 import BackButton from '../common/BackButton';
 import { 

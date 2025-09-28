@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { createProject } from '../../services/localStorageService';
+import { createProject } from '../../services/supabaseService';
 import { Company } from '../../types';
 import BackButton from '../common/BackButton';
 import { useNavigate } from 'react-router-dom';

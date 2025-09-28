@@ -7,7 +7,7 @@ import {
   releaseEscrowToStudent,
   updateProject,
   createNotification
-} from '../../services/localStorageService';
+} from '../../services/supabaseService';
 import { updateRatingOnProjectSuccess } from '../../services/ratingService';
 import { Project, Escrow } from '../../types';
 import { 

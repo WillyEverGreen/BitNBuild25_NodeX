@@ -104,14 +104,19 @@ const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Content - Image Placeholder */}
+          {/* Right Content - Hero Image */}
           <div className="relative">
-            <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 h-96 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-32 h-32 bg-blue-200 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                  <Users className="h-16 w-16 text-blue-600" />
-                </div>
-                <p className="text-gray-600">Students working together on projects</p>
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+              <img 
+                src="/home.jpg" 
+                alt="Students collaborating on projects" 
+                className="w-full h-96 object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              <div className="absolute bottom-4 left-4 right-4">
+                <p className="text-white text-sm font-medium bg-black/30 backdrop-blur-sm rounded-lg px-3 py-2">
+                  Students working together on innovative projects
+                </p>
               </div>
             </div>
           </div>

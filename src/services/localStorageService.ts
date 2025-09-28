@@ -10,6 +10,7 @@ import {
   Escrow,
   BankAccount,
 } from "../types";
+import { ResumeAnalysis } from "./aiService";
 
 // Utility functions for local storage
 const getFromStorage = <T>(key: string): T[] => {
@@ -1044,4 +1045,63 @@ export const releaseEscrowToStudent = async (
   saveToStorage(STORAGE_KEYS.WALLETS, wallets);
 
   return { escrow: updatedEscrow, transaction, studentWallet: wallets[walletIndex] };
+};
+
+// Resume Analysis Management
+export const saveResumeAnalysis = async (
+  userId: string,
+  analysis: ResumeAnalysis
+): Promise<Student> => {
+  const users = getFromStorage<Student | Company>(STORAGE_KEYS.USERS);
+  const userIndex = users.findIndex((user) => user.id === userId);
+
+  if (userIndex === -1) {
+    throw new Error("User not found");
+  }
+
+  const user = users[userIndex];
+  if (user.type !== 'student') {
+    throw new Error("Only students can have resume analysis");
+  }
+
+  const resumeAnalysisData = {
+    overallRating: analysis.overallRating,
+    skillRating: analysis.skillRating,
+    experienceRating: analysis.experienceRating,
+    educationRating: analysis.educationRating,
+    summary: analysis.summary,
+    skills: analysis.skills,
+    experience: analysis.experience,
+    education: analysis.education,
+    strengths: analysis.strengths,
+    weaknesses: analysis.weaknesses,
+    suggestions: analysis.suggestions,
+    industryFit: analysis.industryFit,
+    keywordMatches: analysis.keywordMatches,
+    technicalDepth: analysis.technicalDepth,
+    professionalLevel: analysis.professionalLevel,
+    confidence: analysis.confidence,
+    analyzed_at: new Date().toISOString()
+  };
+
+  const updatedUser = {
+    ...user,
+    resume_uploaded: true,
+    resume_analysis: resumeAnalysisData,
+    skills: [...new Set([...user.skills, ...analysis.skills])] // Merge skills without duplicates
+  } as Student;
+
+  users[userIndex] = updatedUser;
+  saveToStorage(STORAGE_KEYS.USERS, users);
+
+  // Update current user if it's the same user
+  const currentUser = await getCurrentUser();
+  if (currentUser && currentUser.id === userId) {
+    localStorage.setItem(
+      STORAGE_KEYS.CURRENT_USER,
+      JSON.stringify(updatedUser)
+    );
+  }
+
+  return updatedUser;
 };

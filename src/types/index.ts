@@ -21,6 +21,25 @@ export interface Student extends User {
   resume_uploaded: boolean;
   resume_url?: string;
   available_hours: number;
+  resume_analysis?: {
+    overallRating: number;
+    skillRating: number;
+    experienceRating: number;
+    educationRating: number;
+    summary: string;
+    skills: string[];
+    experience: string[];
+    education: string[];
+    strengths: string[];
+    weaknesses: string[];
+    suggestions: string[];
+    industryFit: string[];
+    keywordMatches: number;
+    technicalDepth: number;
+    professionalLevel: number;
+    confidence: number;
+    analyzed_at: string;
+  };
 }
 
 export interface Company extends User {
@@ -60,6 +79,7 @@ export interface Bid {
   student_rating: number;
   amount: number;
   proposal: string;
+  timeline: string;
   delivery_time: number;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;

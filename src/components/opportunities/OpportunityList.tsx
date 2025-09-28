@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getProjects, createBid } from '../../services/localStorageService';
+import { getProjects, createBid } from '../../services/supabaseService';
 import { Project, Student } from '../../types';
 
 const OpportunityList: React.FC = () => {
@@ -44,6 +44,7 @@ const OpportunityList: React.FC = () => {
         student_rating: student.rating,
         amount: parseInt(bidData.amount),
         proposal: bidData.proposal,
+        timeline: `${bidData.deliveryTime} days`,
         delivery_time: parseInt(bidData.deliveryTime),
         status: 'pending' as const
       };

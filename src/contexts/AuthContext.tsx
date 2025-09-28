@@ -12,6 +12,7 @@ import {
   getCurrentUser,
   initializeSampleData,
 } from "../services/localStorageService";
+import { initializeSampleData as initializeSupabaseData } from "../services/supabaseService";
 import { Student, Company } from "../types";
 
 interface AuthContextType {
@@ -43,8 +44,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Initialize sample data if needed
+        // Initialize sample data if needed (localStorage for auth)
         initializeSampleData();
+        
+        // Initialize Supabase sample data
+        await initializeSupabaseData();
 
         // Check for existing user session
         const currentUser = await getCurrentUser();
