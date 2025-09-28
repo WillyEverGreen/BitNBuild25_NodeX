@@ -5,13 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import {
-  createUser,
-  signInUser,
-  signOutUser,
-  getCurrentUser,
-  initializeSampleData,
-} from "../services/localStorageService";
+import { supabaseAuthService } from "../services/supabaseAuthService";
 import { initializeSampleData as initializeSupabaseData } from "../services/supabaseService";
 import { Student, Company } from "../types";
 
@@ -21,6 +15,7 @@ interface AuthContextType {
   register: (userData: any, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,15 +39,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Initialize sample data if needed (localStorage for auth)
-        initializeSampleData();
-        
         // Initialize Supabase sample data
         await initializeSupabaseData();
 
         // Check for existing user session
-        const currentUser = await getCurrentUser();
+        const currentUser = await supabaseAuthService.getCurrentUser();
         setUser(currentUser);
+
+        // Listen for auth state changes
+        const { data: { subscription } } = supabaseAuthService.onAuthStateChange((user) => {
+          setUser(user);
+        });
+
+        // Cleanup subscription on unmount
+        return () => {
+          subscription?.unsubscribe();
+        };
       } catch (error) {
         console.error("Error initializing auth:", error);
       } finally {
@@ -66,7 +68,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const user = await signInUser(email, password);
+      const user = await supabaseAuthService.signIn(email, password);
       setUser(user);
     } catch (error) {
       console.error("Login error:", error);
@@ -79,7 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: any, password: string) => {
     setLoading(true);
     try {
-      const user = await createUser(userData, password);
+      const user = await supabaseAuthService.signUp(userData.email, password, userData);
       setUser(user);
     } catch (error) {
       console.error("Registration error:", error);
@@ -91,7 +93,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await signOutUser();
+      await supabaseAuthService.signOut();
       setUser(null);
     } catch (error) {
       console.error("Logout error:", error);
@@ -99,8 +101,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const currentUser = await supabaseAuthService.getCurrentUser();
+      if (currentUser) {
+        setUser(currentUser);
+      }
+    } catch (error) {
+      console.error("Error refreshing user:", error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

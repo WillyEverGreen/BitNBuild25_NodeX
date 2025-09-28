@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Student, Project, Bid } from '../../types';
 import { getProjects, getBidsByStudent, getWalletByUserId, getTransactionsByUserId } from '../../services/supabaseService';
-import { Star, DollarSign, Clock, TrendingUp, Briefcase, List, Hand, HelpCircle } from 'lucide-react';
+import { Star, DollarSign, Clock, TrendingUp, Briefcase, List, Hand, HelpCircle, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OpportunityList from '../opportunities/OpportunityList';
 import RatingDisplay from '../rating/RatingDisplay';
@@ -21,6 +21,14 @@ const StudentDashboard: React.FC = () => {
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOpportunities, setShowOpportunities] = useState(false);
+  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
+  const [recentBids, setRecentBids] = useState<Bid[]>([]);
+
+  useEffect(() => {
+    if (user && user.type === 'student') {
+      loadData();
+    }
+  }, [user?.id]);
 
   // Early return if user is not loaded or not a student
   if (!user || user.type !== 'student') {
@@ -33,12 +41,6 @@ const StudentDashboard: React.FC = () => {
       </div>
     );
   }
-  const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
-  const [recentBids, setRecentBids] = useState<Bid[]>([]);
-
-  useEffect(() => {
-    loadData();
-  }, [student?.id]);
 
   const loadData = async () => {
     if (!student?.id) return;
@@ -166,8 +168,78 @@ const StudentDashboard: React.FC = () => {
         <RatingHistory userId={student.id} />
       </div>
 
+      {/* Resume Analysis Display */}
+      {student.resume_analysis && student.resume_uploaded && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Award className="h-6 w-6 text-yellow-500" />
+              <h3 className="text-lg font-semibold text-gray-900">Resume Analysis Score</h3>
+            </div>
+            <span className="text-sm text-gray-500">AI-powered analysis</span>
+          </div>
+          
+          {/* Overall Score */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="text-3xl font-bold text-indigo-600">
+                {student.resume_analysis.overallRating.toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-500">/ 3000</div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-gray-600">
+                {student.resume_analysis.overallRating >= 2400 ? 'Expert Level' :
+                 student.resume_analysis.overallRating >= 1800 ? 'Advanced Level' :
+                 student.resume_analysis.overallRating >= 1200 ? 'Intermediate Level' :
+                 student.resume_analysis.overallRating >= 600 ? 'Beginner Level' : 'Entry Level'}
+              </div>
+              <div className="text-xs text-gray-500">
+                {((student.resume_analysis.overallRating / 3000) * 100).toFixed(1)}% Complete
+              </div>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+            <div 
+              className={`h-3 rounded-full transition-all duration-500 ${
+                student.resume_analysis.overallRating >= 2400 ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                student.resume_analysis.overallRating >= 1800 ? 'bg-gradient-to-r from-blue-400 to-blue-600' :
+                student.resume_analysis.overallRating >= 1200 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                student.resume_analysis.overallRating >= 600 ? 'bg-gradient-to-r from-orange-400 to-orange-600' : 
+                'bg-gradient-to-r from-red-400 to-red-600'
+              }`}
+              style={{ width: `${(student.resume_analysis.overallRating / 3000) * 100}%` }}
+            ></div>
+          </div>
+
+          {/* Extracted Skills */}
+          {student.resume_analysis.skills && student.resume_analysis.skills.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Extracted Skills</h4>
+              <div className="flex flex-wrap gap-2">
+                {student.resume_analysis.skills.slice(0, 8).map((skill: string, index: number) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                  >
+                    {skill}
+                  </span>
+                ))}
+                {student.resume_analysis.skills.length > 8 && (
+                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                    +{student.resume_analysis.skills.length - 8} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Profile Completion */}
-      {!student.resume_uploaded && (
+      {!student.resume_uploaded && !student.resume_analysis && (
         <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6 mb-8">
           <div className="flex items-start">
             <div className="p-2 bg-blue-100 rounded-lg">

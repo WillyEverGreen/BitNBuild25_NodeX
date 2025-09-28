@@ -718,9 +718,30 @@ export const getTransactionsByUserId = async (userId: string): Promise<Transacti
 };
 
 export const saveResumeAnalysis = async (userId: string, analysis: any): Promise<void> => {
-  // This would typically update a user's resume analysis
-  // For now, we'll just log it
-  console.log('Resume analysis saved for user:', userId, analysis);
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase not configured, resume analysis not saved');
+    return;
+  }
+
+  try {
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({
+        resume_analysis: analysis,
+        resume_uploaded: true,
+        skills: analysis.skills || []
+      })
+      .eq('id', userId);
+
+    if (error) {
+      throw new Error(`Failed to save resume analysis: ${error.message}`);
+    }
+
+    console.log('Resume analysis saved successfully for user:', userId);
+  } catch (error) {
+    console.error('Error saving resume analysis:', error);
+    throw error;
+  }
 };
 
 export const updateEscrowStatus = async (escrowId: string, status: string): Promise<void> => {
@@ -735,10 +756,29 @@ export const updateEscrowStatus = async (escrowId: string, status: string): Prom
 };
 
 export const updateUser = async (userId: string, updates: any): Promise<any> => {
-  // Since we're not storing users in Supabase, this is a mock implementation
-  // In a real app, you'd update the user in your auth system
-  console.log('User update requested:', userId, updates);
-  return { id: userId, ...updates };
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase not configured, user update not saved');
+    return { id: userId, ...updates };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update user: ${error.message}`);
+    }
+
+    console.log('User updated successfully:', userId);
+    return data;
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw error;
+  }
 };
 
 // Wallet functions (proper implementations)
@@ -820,8 +860,7 @@ export const depositFunds = async (userId: string, amount: number, description: 
     .from('wallets')
     .update({
       balance: wallet.balance + amount,
-      total_deposited: wallet.total_deposited + amount,
-      updated_at: new Date().toISOString()
+      total_deposited: wallet.total_deposited + amount
     })
     .eq('id', wallet.id)
     .select()
@@ -896,8 +935,7 @@ export const assignEscrowToProject = async (companyId: string, projectId: string
   const { data: updatedWallet, error: walletError } = await supabase
     .from('wallets')
     .update({
-      balance: wallet.balance - amount,
-      updated_at: new Date().toISOString()
+      balance: wallet.balance - amount
     })
     .eq('id', wallet.id)
     .select()

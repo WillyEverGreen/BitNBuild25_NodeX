@@ -4,6 +4,40 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- User profiles table (extends Supabase auth.users)
+CREATE TABLE IF NOT EXISTS user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('student', 'company')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_verified BOOLEAN DEFAULT FALSE,
+    avatar TEXT,
+    
+    -- Student fields
+    university TEXT,
+    year INTEGER,
+    major TEXT,
+    skills TEXT[] DEFAULT '{}',
+    interests TEXT[] DEFAULT '{}',
+    rating DECIMAL(3,2) DEFAULT 5.0,
+    completed_projects INTEGER DEFAULT 0,
+    total_earnings INTEGER DEFAULT 0,
+    resume_uploaded BOOLEAN DEFAULT FALSE,
+    resume_url TEXT,
+    resume_analysis JSONB,
+    available_hours INTEGER DEFAULT 20,
+    
+    -- Company fields
+    company_name TEXT,
+    industry TEXT,
+    website TEXT,
+    contact_person TEXT,
+    posted_projects INTEGER DEFAULT 0,
+    total_spent INTEGER DEFAULT 0,
+    payment_method TEXT
+);
+
 -- Projects table
 CREATE TABLE IF NOT EXISTS projects (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -150,7 +184,12 @@ CREATE INDEX IF NOT EXISTS idx_transactions_wallet_id ON transactions(wallet_id)
 CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);
 CREATE INDEX IF NOT EXISTS idx_wallets_balance ON wallets(balance);
 
+CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_type ON user_profiles(type);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_created_at ON user_profiles(created_at);
+
 -- Enable Row Level Security (RLS)
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bids ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
@@ -170,7 +209,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create policies for public access (since we're not using Supabase auth)
+-- Create policies for Supabase Auth integration
+-- User profiles: Users can view and update their own profile
+CREATE POLICY "Users can view their own profile" ON user_profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can insert their own profile" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update their own profile" ON user_profiles FOR UPDATE USING (auth.uid() = id);
+
 -- Projects: Anyone can read, only client can update/delete their own projects
 CREATE POLICY "Anyone can view projects" ON projects FOR SELECT USING (true);
 CREATE POLICY "Clients can insert projects" ON projects FOR INSERT WITH CHECK (true);

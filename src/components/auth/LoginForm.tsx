@@ -150,12 +150,13 @@ const LoginForm: React.FC = () => {
           </div>
         </form>
 
-        {/* Demo credentials */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">Demo Credentials:</h3>
-          <div className="space-y-1 text-xs text-gray-600">
-            <p><strong>Student:</strong> student@test.com / password123</p>
-            <p><strong>Company:</strong> contact@techcorp.com / password</p>
+        {/* Supabase Auth Info */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-sm font-medium text-blue-900 mb-2">Supabase Authentication:</h3>
+          <div className="space-y-1 text-xs text-blue-700">
+            <p>• Secure authentication with Supabase</p>
+            <p>• Email verification required for new accounts</p>
+            <p>• Password reset available via email</p>
           </div>
         </div>
       </div>
