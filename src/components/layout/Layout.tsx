@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
+import Chatbot from '../chatbot/Chatbot';
 
 const Layout: React.FC = () => {
   return (
@@ -9,6 +10,7 @@ const Layout: React.FC = () => {
       <main className="flex-1">
         <Outlet />
       </main>
+      <Chatbot />
     </div>
   );
 };

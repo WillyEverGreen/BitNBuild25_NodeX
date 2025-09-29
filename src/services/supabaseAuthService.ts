@@ -8,6 +8,68 @@ const isSupabaseConfigured = () => {
 
 // Auth service using Supabase Auth
 export const supabaseAuthService = {
+  // Internal helper to ensure a profile exists for the current auth user
+  async ensureProfile(userId: string, fallbackData?: any): Promise<Student | Company> {
+    // Try to fetch profile
+    const { data: existing, error: fetchErr } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (existing) return existing as Student | Company;
+
+    // If not found, attempt to create minimal profile using available metadata
+    const sessionRes = await supabase.auth.getUser();
+    const authUser = sessionRes.data.user;
+    const email = authUser?.email || fallbackData?.email;
+    const name = (authUser?.user_metadata?.name as string) || fallbackData?.name || email || 'User';
+    const type = (authUser?.user_metadata?.type as string) || fallbackData?.type || 'student';
+
+    const profileData: any = {
+      id: userId,
+      email,
+      name,
+      type,
+      created_at: new Date().toISOString(),
+      is_verified: !!authUser?.email_confirmed_at,
+    };
+
+    if (type === 'student') {
+      Object.assign(profileData, {
+        university: fallbackData?.university || '',
+        year: fallbackData?.year ?? null,
+        major: fallbackData?.major || '',
+        skills: fallbackData?.skills || [],
+        rating: 5.0,
+        completed_projects: 0,
+        total_earnings: 0,
+        resume_uploaded: false,
+        available_hours: 20,
+      });
+    } else {
+      Object.assign(profileData, {
+        company_name: fallbackData?.company_name || name,
+        industry: fallbackData?.industry || '',
+        website: fallbackData?.website || '',
+        contact_person: fallbackData?.contact_person || name,
+        posted_projects: 0,
+        total_spent: 0,
+      });
+    }
+
+    const { data: created, error: createErr } = await supabase
+      .from('user_profiles')
+      .insert([profileData])
+      .select()
+      .single();
+
+    if (createErr) {
+      throw new Error(`Failed to create user profile: ${createErr.message}`);
+    }
+
+    return created as Student | Company;
+  },
   // Sign up a new user
   async signUp(email: string, password: string, userData: any): Promise<Student | Company> {
     if (!isSupabaseConfigured()) {
@@ -19,60 +81,27 @@ export const supabaseAuthService = {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/reset-password`,
+          data: {
+            name: userData.name,
+            type: userData.type,
+          },
+        },
       });
 
       if (authError) {
         throw new Error(authError.message);
       }
 
+      // If email confirmations are enabled, there might be no active session yet.
+      // We don't create profile here to avoid RLS issues; it will be created on first sign-in.
       if (!authData.user) {
-        throw new Error('Failed to create user account');
+        throw new Error('Account created. Please verify your email to continue.');
       }
 
-      // Create user profile in our custom table
-      const profileData = {
-        id: authData.user.id,
-        email: authData.user.email!,
-        name: userData.name,
-        type: userData.type,
-        created_at: new Date().toISOString(),
-        is_verified: false,
-        // Student fields
-        ...(userData.type === 'student' && {
-          university: userData.university,
-          year: userData.year,
-          major: userData.major,
-          skills: userData.skills,
-          rating: userData.rating || 5.0,
-          completed_projects: userData.completed_projects || 0,
-          total_earnings: userData.total_earnings || 0,
-          resume_uploaded: userData.resume_uploaded || false,
-          available_hours: userData.available_hours || 20,
-        }),
-        // Company fields
-        ...(userData.type === 'company' && {
-          company_name: userData.company_name,
-          industry: userData.industry,
-          website: userData.website,
-          contact_person: userData.contact_person,
-          posted_projects: userData.posted_projects || 0,
-          total_spent: userData.total_spent || 0,
-        }),
-      };
-
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .insert([profileData])
-        .select()
-        .single();
-
-      if (profileError) {
-        // If profile creation fails, we should clean up the auth user
-        console.error('Profile creation failed:', profileError);
-        throw new Error(`Failed to create user profile: ${profileError.message}`);
-      }
-
-      return profile as Student | Company;
+      // If session exists (email confirmations disabled), ensure profile now
+      return await this.ensureProfile(authData.user.id, userData);
     } catch (error) {
       console.error('Sign up error:', error);
       throw error;
@@ -93,25 +122,23 @@ export const supabaseAuthService = {
       });
 
       if (authError) {
-        throw new Error(authError.message);
+        // Provide clearer guidance for common cases
+        const msg = authError.message?.toLowerCase() || '';
+        if (msg.includes('invalid login credentials')) {
+          throw new Error('Invalid email or password.');
+        }
+        if (msg.includes('email') && msg.includes('confirm')) {
+          throw new Error('Email not confirmed. Please check your inbox for the verification email.');
+        }
+        throw new Error(authError.message || 'Failed to sign in');
       }
 
       if (!authData.user) {
         throw new Error('Failed to sign in');
       }
 
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (profileError) {
-        throw new Error(`Failed to fetch user profile: ${profileError.message}`);
-      }
-
-      return profile as Student | Company;
+      // Ensure profile exists (create if missing)
+      return await this.ensureProfile(authData.user.id);
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
@@ -154,19 +181,8 @@ export const supabaseAuthService = {
         return null;
       }
 
-      // Get user profile
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-
-      if (profileError) {
-        console.error('Profile fetch error:', profileError);
-        return null;
-      }
-
-      return profile as Student | Company;
+      // Ensure profile exists
+      return await this.ensureProfile(session.user.id);
     } catch (error) {
       console.error('Get current user error:', error);
       return null;
@@ -207,13 +223,8 @@ export const supabaseAuthService = {
     return supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         try {
-          const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          callback(profile as Student | Company);
+          const ensured = await supabaseAuthService.ensureProfile(session.user.id);
+          callback(ensured);
         } catch (error) {
           console.error('Auth state change error:', error);
           callback(null);
@@ -240,6 +251,25 @@ export const supabaseAuthService = {
       }
     } catch (error) {
       console.error('Reset password error:', error);
+      throw error;
+    }
+  },
+
+  // Resend email verification link
+  async resendVerificationEmail(email: string): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase not configured. Please check your environment variables.');
+    }
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/login` },
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Resend verification error:', error);
       throw error;
     }
   },

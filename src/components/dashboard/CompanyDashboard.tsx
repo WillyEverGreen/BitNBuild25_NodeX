@@ -1,24 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Company, Project, Bid } from '../../types';
-import { getProjectsByCompany, getBidsByProject, getWalletByUserId, getTransactionsByUserId } from '../../services/supabaseService';
+import { getProjectsByCompany, getBidsByProject, getTransactionsByUserId } from '../../services/supabaseService';
 import { Plus, Users, DollarSign, Clock, TrendingUp, Eye, MessageSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CreateOpportunity from '../opportunities/CreateOpportunity';
+import PendingRatings from '../rating/PendingRatings';
+import ProjectRatingDisplay from '../rating/ProjectRatingDisplay';
+import { getRatingsForUser, getRatingStats } from '../../services/projectRatingService';
 
 const CompanyDashboard: React.FC = () => {
   const { user } = useAuth();
   const company = user as Company;
   const [stats, setStats] = useState({
     activeProjects: 0,
-    totalBids: 0,
-    completedProjects: 0,
-    totalSpent: 0
+    totalSpent: 0,
+    postedProjects: 0,
+    pendingBids: 0
   });
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
+  const [myProjects, setMyProjects] = useState<Project[]>([]);
+  const [recentBids, setRecentBids] = useState<Bid[]>([]);
+  const [projectRatings, setProjectRatings] = useState<any[]>([]);
+  const [ratingStats, setRatingStats] = useState<any>(null);
 
   // Early return if user is not loaded or not a company
   if (!user || user.type !== 'company') {
@@ -31,8 +36,6 @@ const CompanyDashboard: React.FC = () => {
       </div>
     );
   }
-  const [myProjects, setMyProjects] = useState<Project[]>([]);
-  const [recentBids, setRecentBids] = useState<Bid[]>([]);
 
   useEffect(() => {
     loadData();
@@ -71,6 +74,12 @@ const CompanyDashboard: React.FC = () => {
         postedProjects,
         pendingBids
       });
+      
+      // Load project ratings
+      const ratings = getRatingsForUser(company.id);
+      const stats = getRatingStats(company.id);
+      setProjectRatings(ratings);
+      setRatingStats(stats);
       
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -345,6 +354,19 @@ const CompanyDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+      
+      {/* Company Ratings & Pending Ratings */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <ProjectRatingDisplay
+          ratings={projectRatings}
+          stats={ratingStats}
+          userType="company"
+          userName={company.company_name}
+          showReviews={true}
+          maxReviews={3}
+        />
+        <PendingRatings />
       </div>
 
       {/* Create Opportunity Modal */}

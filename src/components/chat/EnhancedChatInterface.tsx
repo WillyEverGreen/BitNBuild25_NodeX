@@ -6,7 +6,11 @@ import {
   createMessage, 
   getConversationsByUser,
   createNotification,
-  getUserById
+  getUserById,
+  getProjectsByCompany,
+  getBidsByProject,
+  getBidsByStudent,
+  getProjectById
 } from '../../services/supabaseService';
 import { Message } from '../../types';
 import { 
@@ -24,6 +28,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import BackButton from '../common/BackButton';
+import { uploadChatFile } from '../../services/storageService';
 
 interface EnhancedMessage extends Message {
   file_url?: string;
@@ -97,8 +102,61 @@ const EnhancedChatInterface: React.FC = () => {
   const loadConversations = async () => {
     try {
       setLoading(true);
-      const userConversations = await getConversationsByUser(user!.id);
+      let userConversations = await getConversationsByUser(user!.id);
       console.log('Loaded conversations for user', user!.id, ':', userConversations);
+
+      // Fallback: derive conversations from bids if none found
+      if (!userConversations || userConversations.length === 0) {
+        const derived: Conversation[] = [];
+        if (user?.type === 'company') {
+          // Get company's projects and aggregate bidders
+          try {
+            const projects = await getProjectsByCompany(user.id);
+            for (const p of projects) {
+              const bids = await getBidsByProject(p.id);
+              for (const b of bids) {
+                const convId = [user.id, b.student_id].sort().join('_');
+                if (!derived.find(c => c.id === convId)) {
+                  derived.push({
+                    id: convId,
+                    participant_id: b.student_id,
+                    participant_name: b.student_name,
+                    participant_type: 'student',
+                    project_title: p.title,
+                    unread_count: 0,
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to derive company conversations from bids:', e);
+          }
+        } else if (user?.type === 'student') {
+          // Get student's bids and map to project owners
+          try {
+            const bids = await getBidsByStudent(user.id);
+            for (const b of bids) {
+              const proj = await getProjectById(b.project_id);
+              if (!proj) continue;
+              const convId = [user.id, proj.client_id].sort().join('_');
+              if (!derived.find(c => c.id === convId)) {
+                derived.push({
+                  id: convId,
+                  participant_id: proj.client_id,
+                  participant_name: proj.client_name,
+                  participant_type: 'company',
+                  project_title: proj.title,
+                  unread_count: 0,
+                });
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to derive student conversations from bids:', e);
+          }
+        }
+        userConversations = derived;
+      }
+
       setConversations(userConversations);
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -184,13 +242,13 @@ const EnhancedChatInterface: React.FC = () => {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !selectedConversation || !user) return;
-
-    // Simulate file upload (in real app, upload to cloud storage)
-    const fileUrl = URL.createObjectURL(file);
     
     try {
       const conversation = conversations.find(conv => conv.id === selectedConversation);
       if (!conversation) return;
+
+      // Upload to Supabase Storage and get public URL
+      const { url } = await uploadChatFile(selectedConversation, file);
 
       const message: Omit<EnhancedMessage, 'id' | 'timestamp'> = {
         sender_id: user.id,
@@ -198,7 +256,7 @@ const EnhancedChatInterface: React.FC = () => {
         content: `📎 Shared a file: ${file.name}`,
         read: false,
         conversation_id: selectedConversation,
-        file_url: fileUrl,
+        file_url: url,
         file_name: file.name,
         file_type: file.type,
         file_size: file.size
@@ -213,7 +271,8 @@ const EnhancedChatInterface: React.FC = () => {
       }
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload file. Please try again.');
+      const msg = (error as any)?.message || 'Failed to upload file. Please try again.';
+      alert(msg);
     }
   };
 

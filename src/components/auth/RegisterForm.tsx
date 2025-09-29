@@ -343,15 +343,7 @@ const RegisterForm: React.FC = () => {
             </p>
           </div>
 
-          {/* Supabase Auth Info */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">Account Creation:</h3>
-            <div className="space-y-1 text-xs text-blue-700">
-              <p>• You'll receive an email verification link</p>
-              <p>• Click the link to activate your account</p>
-              <p>• Secure authentication powered by Supabase</p>
-            </div>
-          </div>
+          {/* Production: helper info removed */}
         </form>
       </div>
     </div>

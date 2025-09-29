@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByStudent } from '../../services/supabaseService';
-import { Bid } from '../../types';
+import { getBidsByStudent, getProjectById } from '../../services/supabaseService';
+import { Bid, Project } from '../../types';
 import BackButton from '../common/BackButton';
 import { DollarSign, Clock, Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
+interface BidWithProject extends Bid {
+  project?: Project | null;
+}
+
 const MyBids: React.FC = () => {
   const { user } = useAuth();
-  const [bids, setBids] = useState<Bid[]>([]);
+  const [bids, setBids] = useState<BidWithProject[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +24,27 @@ const MyBids: React.FC = () => {
     try {
       setLoading(true);
       const studentBids = await getBidsByStudent(user!.id);
-      setBids(studentBids);
+      
+      // Enhance bids with project details
+      const enhancedBids: BidWithProject[] = await Promise.all(
+        studentBids.map(async (bid) => {
+          try {
+            const project = await getProjectById(bid.project_id);
+            return {
+              ...bid,
+              project
+            };
+          } catch (error) {
+            console.warn(`Failed to load project ${bid.project_id}:`, error);
+            return {
+              ...bid,
+              project: undefined
+            };
+          }
+        })
+      );
+      
+      setBids(enhancedBids);
     } catch (error) {
       console.error('Error loading bids:', error);
     } finally {
@@ -99,8 +123,15 @@ const MyBids: React.FC = () => {
                     {bid.student_name}
                   </h3>
                   <p className="text-gray-600 text-sm mb-3">
-                    Bid on project: <span className="font-medium">{bid.project_id}</span>
+                    Bid on project: <span className="font-medium">
+                      {bid.project?.title || `Project ${bid.project_id}`}
+                    </span>
                   </p>
+                  {bid.project?.description && (
+                    <p className="text-gray-500 text-xs mb-2 line-clamp-2">
+                      {bid.project.description}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(bid.status)}
@@ -110,18 +141,36 @@ const MyBids: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div className="flex items-center text-sm text-gray-600">
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  <span className="font-semibold">${bid.amount.toLocaleString()}</span>
+                  <DollarSign className="h-4 w-4 mr-2 text-green-600" />
+                  <div>
+                    <span className="font-semibold">${bid.amount.toLocaleString()}</span>
+                    <p className="text-xs text-gray-500">Your Bid</p>
+                  </div>
                 </div>
+                {bid.project?.budget && (
+                  <div className="flex items-center text-sm text-gray-600">
+                    <DollarSign className="h-4 w-4 mr-2 text-blue-600" />
+                    <div>
+                      <span className="font-semibold">${bid.project.budget.toLocaleString()}</span>
+                      <p className="text-xs text-gray-500">Project Budget</p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center text-sm text-gray-600">
                   <Clock className="h-4 w-4 mr-2" />
-                  <span>{bid.delivery_time} days</span>
+                  <div>
+                    <span>{bid.delivery_time} days</span>
+                    <p className="text-xs text-gray-500">Delivery Time</p>
+                  </div>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <Calendar className="h-4 w-4 mr-2" />
-                  <span>{new Date(bid.created_at).toLocaleDateString()}</span>
+                  <div>
+                    <span>{new Date(bid.created_at).toLocaleDateString()}</span>
+                    <p className="text-xs text-gray-500">Bid Date</p>
+                  </div>
                 </div>
               </div>
 

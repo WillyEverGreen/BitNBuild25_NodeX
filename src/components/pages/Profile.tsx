@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateUser } from '../../services/supabaseService';
+import { updateUser as updateUserLocal } from '../../services/localStorageService';
 import { Student, Company } from '../../types';
 import BackButton from '../common/BackButton';
 import ResumeUpload from '../resume/ResumeUpload';
-import { ChevronDown, ChevronUp, Award, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Award, CheckCircle, AlertCircle } from 'lucide-react';
 
 const Profile: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -74,6 +75,12 @@ const Profile: React.FC = () => {
     }
   }, [user]);
 
+  // Helper function to check if ID is UUID format (Supabase) or random string (localStorage)
+  const isUUID = (id: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(id);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -88,9 +95,18 @@ const Profile: React.FC = () => {
         } : {})
       };
 
-      await updateUser(user.id, updateData);
+      // Use appropriate service based on user ID format
+      if (isUUID(user.id)) {
+        // Supabase user (UUID format)
+        await updateUser(user.id, updateData);
+      } else {
+        // localStorage user (random string format)
+        await updateUserLocal(user.id, updateData);
+      }
+      
       alert('Profile updated successfully!');
-      // The useEffect will automatically update the form with the new user data
+      // Refresh user data to reflect changes
+      await refreshUser();
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Failed to update profile. Please try again.');
@@ -116,20 +132,12 @@ const Profile: React.FC = () => {
         // Update the form data to reflect the new skills
         setFormData(prev => ({
           ...prev,
-          skills: analysis.skills?.join(', ') || prev.skills
+          skills: analysis.skills?.join(', ') || (prev as any).skills || ''
         }));
         
-        // Wait a moment for the database to be updated, then refresh user data
-        setTimeout(async () => {
-          try {
-            await refreshUser();
-            console.log('User refreshed after resume upload');
-          } catch (refreshError) {
-            console.error('Error refreshing user:', refreshError);
-          }
-        }, 1000);
-        
-        alert('Resume uploaded successfully! Your skills have been updated.');
+        // Refresh user data to get the updated resume analysis
+        await refreshUser();
+        console.log('User refreshed after resume upload');
       }
     } catch (error) {
       console.error('Error updating user after resume upload:', error);
@@ -267,78 +275,75 @@ const Profile: React.FC = () => {
             </div>
           )}
 
-          {/* Resume Upload Section for Students */}
+          {/* Resume Upload & Overall Rating Section for Students */}
           {user.type === 'student' && (
             <div className="border-b border-gray-200 pb-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Resume Upload</h3>
-                {!showResumeUpload && (
-                  <button
-                    type="button"
-                    onClick={() => setShowResumeUpload(true)}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    {(user as Student).resume_uploaded ? 'Upload New Resume' : 'Upload Resume'}
-                  </button>
-                )}
-              </div>
-              
-              {(user as Student).resume_uploaded && !showResumeUpload ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-green-800">
-                        Resume uploaded successfully
-                      </p>
-                      <p className="text-sm text-green-700">
-                        Your profile has been enhanced with AI analysis
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : showResumeUpload ? (
-                <ResumeUpload
-                  user={user as Student}
-                  onSuccess={handleResumeSuccess}
-                  onError={handleResumeError}
-                />
-              ) : (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-                  <p className="text-gray-600 mb-4">
-                    Upload your resume to get AI-powered analysis and improve your profile rating
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowResumeUpload(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Upload Resume
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Overall Rating Section for Students */}
-          {user.type === 'student' && (
-            <div className="border-b border-gray-200 pb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Overall Rating</h3>
+                <h3 className="text-lg font-medium text-gray-900">Resume & Profile Rating</h3>
                 <span className="text-sm text-gray-500">AI-powered analysis</span>
               </div>
               
+              {/* Resume Upload */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-md font-medium text-gray-800">Resume Upload</h4>
+                  {(user as Student).resume_analysis && !showResumeUpload && (
+                    <button
+                      type="button"
+                      onClick={() => setShowResumeUpload(true)}
+                      className="px-3 py-1.5 bg-gray-600 text-white text-xs rounded-md hover:bg-gray-700 transition-colors"
+                    >
+                      Update Resume
+                    </button>
+                  )}
+                </div>
+                
+                {(user as Student).resume_analysis && !showResumeUpload ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0">
+                        <CheckCircle className="h-5 w-5 text-green-400" />
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-green-800">
+                          Resume uploaded successfully
+                        </p>
+                        <p className="text-sm text-green-700">
+                          Your profile has been enhanced with AI analysis
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : showResumeUpload ? (
+                  <ResumeUpload
+                    user={user as Student}
+                    onSuccess={handleResumeSuccess}
+                    onError={handleResumeError}
+                  />
+                ) : (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                    <p className="text-gray-600 mb-3">
+                      Upload your resume to get AI-powered analysis and improve your profile rating
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowResumeUpload(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Upload Resume
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Overall Rating */}
               {(user as Student).resume_analysis ? (
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <Award className="h-8 w-8 text-yellow-500" />
                       <div>
-                        <h4 className="text-xl font-bold text-gray-900">Overall Score</h4>
+                        <h4 className="text-xl font-bold text-gray-900">Overall Profile Score</h4>
                         <p className="text-sm text-gray-600">Based on skills, experience, and education</p>
                       </div>
                     </div>
@@ -364,132 +369,116 @@ const Profile: React.FC = () => {
                     ></div>
                   </div>
                   
-                  <div className="text-sm">
-                    <span className="text-gray-600">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
                       {(user as Student).resume_analysis.overallRating >= 2400 ? 'Expert Level' :
                        (user as Student).resume_analysis.overallRating >= 1800 ? 'Advanced Level' :
                        (user as Student).resume_analysis.overallRating >= 1200 ? 'Intermediate Level' :
                        (user as Student).resume_analysis.overallRating >= 600 ? 'Beginner Level' : 'Entry Level'}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
+                      className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      <span>View Detailed Report</span>
+                      {showAnalysisDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
                   </div>
+
+                  {/* Detailed Analysis Dropdown */}
+                  {showAnalysisDetails && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        {/* Skills Rating */}
+                        <div className="bg-white rounded-lg p-4 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="text-sm font-medium text-gray-700">Skills</h5>
+                            <span className="text-xs text-gray-500">/ 3000</span>
+                          </div>
+                          <div className="text-2xl font-bold text-blue-600 mb-2">
+                            {(user as Student).resume_analysis.skillRating.toLocaleString()}
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="h-2 rounded-full bg-blue-500 transition-all duration-500"
+                              style={{ width: `${((user as Student).resume_analysis.skillRating / 3000) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {((user as Student).resume_analysis.skillRating / 3000 * 100).toFixed(1)}% Complete
+                          </div>
+                        </div>
+
+                        {/* Experience Rating */}
+                        <div className="bg-white rounded-lg p-4 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="text-sm font-medium text-gray-700">Experience</h5>
+                            <span className="text-xs text-gray-500">/ 3000</span>
+                          </div>
+                          <div className="text-2xl font-bold text-green-600 mb-2">
+                            {(user as Student).resume_analysis.experienceRating.toLocaleString()}
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="h-2 rounded-full bg-green-500 transition-all duration-500"
+                              style={{ width: `${((user as Student).resume_analysis.experienceRating / 3000) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {((user as Student).resume_analysis.experienceRating / 3000 * 100).toFixed(1)}% Complete
+                          </div>
+                        </div>
+
+                        {/* Education Rating */}
+                        <div className="bg-white rounded-lg p-4 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="text-sm font-medium text-gray-700">Education</h5>
+                            <span className="text-xs text-gray-500">/ 3000</span>
+                          </div>
+                          <div className="text-2xl font-bold text-purple-600 mb-2">
+                            {(user as Student).resume_analysis.educationRating.toLocaleString()}
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="h-2 rounded-full bg-purple-500 transition-all duration-500"
+                              style={{ width: `${((user as Student).resume_analysis.educationRating / 3000) * 100}%` }}
+                            ></div>
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {((user as Student).resume_analysis.educationRating / 3000 * 100).toFixed(1)}% Complete
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Extracted Skills */}
+                      <div className="bg-white rounded-lg p-4 shadow-sm">
+                        <h5 className="text-sm font-medium text-gray-700 mb-3">Extracted Skills</h5>
+                        <div className="flex flex-wrap gap-2">
+                          {(user as Student).resume_analysis.skills.map((skill, index) => (
+                            <span
+                              key={index}
+                              className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-                  <p className="text-gray-600 mb-4">
-                    Upload your resume to get your AI-powered rating
+                  <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600">
+                    Upload your resume above to get your AI-powered profile rating and detailed analysis
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowResumeUpload(true)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Upload Resume
-                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Skills Display Section for Students */}
-          {user.type === 'student' && (user as Student).resume_analysis && (
-            <div className="border-b border-gray-200 pb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Extracted Skills</h3>
-                <span className="text-sm text-gray-500">From resume analysis</span>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {(user as Student).resume_analysis.skills.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-              
-              {/* User Tip */}
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  💡 <strong>Tip:</strong> These skills were automatically extracted from your resume. 
-                  You can add more skills manually in the skills section above, or upload a new resume to update your profile.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Detailed Score Breakdown for Students */}
-          {user.type === 'student' && (user as Student).resume_analysis && (
-            <div className="border-b border-gray-200 pb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Score Breakdown</h3>
-                <span className="text-sm text-gray-500">Detailed analysis</span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Skills Rating */}
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-medium text-gray-700">Skills</h5>
-                    <span className="text-xs text-gray-500">/ 3000</span>
-                  </div>
-                  <div className="text-2xl font-bold text-blue-600 mb-2">
-                    {(user as Student).resume_analysis.skillRating.toLocaleString()}
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-blue-500 transition-all duration-500"
-                      style={{ width: `${((user as Student).resume_analysis.skillRating / 3000) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {((user as Student).resume_analysis.skillRating / 3000 * 100).toFixed(1)}% Complete
-                  </div>
-                </div>
-
-                {/* Experience Rating */}
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-medium text-gray-700">Experience</h5>
-                    <span className="text-xs text-gray-500">/ 3000</span>
-                  </div>
-                  <div className="text-2xl font-bold text-green-600 mb-2">
-                    {(user as Student).resume_analysis.experienceRating.toLocaleString()}
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-green-500 transition-all duration-500"
-                      style={{ width: `${((user as Student).resume_analysis.experienceRating / 3000) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {((user as Student).resume_analysis.experienceRating / 3000 * 100).toFixed(1)}% Complete
-                  </div>
-                </div>
-
-                {/* Education Rating */}
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="text-sm font-medium text-gray-700">Education</h5>
-                    <span className="text-xs text-gray-500">/ 3000</span>
-                  </div>
-                  <div className="text-2xl font-bold text-purple-600 mb-2">
-                    {(user as Student).resume_analysis.educationRating.toLocaleString()}
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full bg-purple-500 transition-all duration-500"
-                      style={{ width: `${((user as Student).resume_analysis.educationRating / 3000) * 100}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {((user as Student).resume_analysis.educationRating / 3000 * 100).toFixed(1)}% Complete
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Student-specific fields */}
           {user.type === 'student' && (
@@ -555,20 +544,6 @@ const Profile: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-              </div>
-              <div className="mt-6">
-                <label htmlFor="skills" className="block text-sm font-medium text-gray-700 mb-2">
-                  Skills (comma-separated)
-                </label>
-                <input
-                  type="text"
-                  id="skills"
-                  name="skills"
-                  value={(formData as any).skills || ''}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., React, Python, Design, Writing"
-                />
               </div>
               <div className="mt-6">
                 <label htmlFor="interests" className="block text-sm font-medium text-gray-700 mb-2">

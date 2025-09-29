@@ -113,6 +113,12 @@ export interface Message {
   read: boolean;
   attachments?: string[];
   conversation_id?: string;
+  // File attachment fields
+  file_url?: string;
+  file_name?: string;
+  file_type?: string;
+  file_size?: number;
+  file_data?: string; // Base64 encoded file data for localStorage
 }
 
 export interface Notification {
@@ -138,7 +144,9 @@ export interface Wallet {
 
 export interface Transaction {
   id: string;
-  user_id: string;
+  user_id?: string; // For backward compatibility
+  from_user_id?: string; // For escrow transactions
+  to_user_id?: string; // For escrow transactions
   wallet_id: string;
   amount: number;
   type: 'deposit' | 'withdrawal' | 'escrow_assignment' | 'escrow_release' | 'project_payment' | 'refund';
@@ -157,11 +165,15 @@ export interface Escrow {
   company_id: string;
   student_id?: string;
   amount: number;
-  status: 'assigned' | 'locked' | 'released' | 'refunded';
-  assigned_at: string;
-  locked_at?: string;
+  // Status supports both Supabase and legacy UI flows
+  // pending: created but not released; assigned/locked: internal UI states; released/refunded: final states
+  status: 'pending' | 'assigned' | 'locked' | 'released' | 'refunded';
+  created_at?: string;
   released_at?: string;
-  description: string;
+  // Optional metadata used by localStorage flows; optional for Supabase
+  assigned_at?: string;
+  locked_at?: string;
+  description?: string;
 }
 
 export interface BankAccount {
@@ -192,4 +204,114 @@ export interface Opportunity {
   bids_count: number;
   created_at: string;
   assigned_to?: string;
+}
+
+// Chatbot Types
+export interface ChatMessage {
+  id: string;
+  content: string;
+  sender: 'user' | 'bot';
+  timestamp: string;
+  quickReplies?: QuickReply[];
+}
+
+export interface QuickReply {
+  id: string;
+  text: string;
+  action: 'navigate' | 'message' | 'function';
+  value: string;
+  icon?: string;
+}
+
+export interface ChatIntent {
+  intent: string;
+  confidence: number;
+  entities?: { [key: string]: string };
+}
+
+export interface ChatbotResponse {
+  message: string;
+  quickReplies?: QuickReply[];
+  action?: {
+    type: 'navigate' | 'function';
+    value: string;
+  };
+}
+
+export interface ChatbotConfig {
+  welcomeMessage: string;
+  fallbackMessage: string;
+  maxHistoryLength: number;
+  enableQuickReplies: boolean;
+}
+
+// Rating System Types
+export interface ProjectRating {
+  id: string;
+  project_id: string;
+  rater_id: string; // Company or Student ID
+  ratee_id: string; // Student or Company ID
+  rater_type: 'company' | 'student';
+  ratee_type: 'student' | 'company';
+  overall_rating: number; // 1-5 stars
+  communication_rating: number;
+  quality_rating: number;
+  timeliness_rating: number;
+  professionalism_rating: number;
+  review_text?: string;
+  would_work_again: boolean;
+  created_at: string;
+  is_public: boolean;
+}
+
+export interface RatingStats {
+  user_id: string;
+  user_type: 'student' | 'company';
+  overall_rating: number;
+  total_ratings: number;
+  communication_avg: number;
+  quality_avg: number;
+  timeliness_avg: number;
+  professionalism_avg: number;
+  would_work_again_percentage: number;
+  recent_ratings: ProjectRating[];
+  rating_breakdown: {
+    five_star: number;
+    four_star: number;
+    three_star: number;
+    two_star: number;
+    one_star: number;
+  };
+}
+
+export interface RatingFormData {
+  overall_rating: number;
+  communication_rating: number;
+  quality_rating: number;
+  timeliness_rating: number;
+  professionalism_rating: number;
+  review_text: string;
+  would_work_again: boolean;
+  is_public: boolean;
+}
+
+export interface SkillRating {
+  skill_name: string;
+  rating: number; // 0-5 stars
+  projects_completed: number;
+  total_projects: number;
+  success_rate: number; // percentage
+  last_updated: string;
+}
+
+export interface StudentSkillStats {
+  student_id: string;
+  overall_skill_rating: number; // 0-5 stars
+  skill_level: 'Novice' | 'Intermediate' | 'Advanced' | 'Expert';
+  total_projects_completed: number;
+  total_projects_failed: number;
+  success_rate: number; // percentage
+  skill_ratings: SkillRating[];
+  total_skills: number;
+  last_updated: string;
 }

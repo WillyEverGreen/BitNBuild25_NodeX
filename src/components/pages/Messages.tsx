@@ -2,9 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   getConversationsByUser, 
-  getMessagesByConversation, 
   createMessage,
-  markMessagesAsRead,
   createNotification
 } from '../../services/supabaseService';
 import { Message } from '../../types';
@@ -18,11 +16,13 @@ import {
   Video, 
   Calendar,
   FileText,
-  Image,
   Download,
   Bell,
   BellOff,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw,
+  File,
+  FileImage
 } from 'lucide-react';
 
 interface Conversation {
@@ -60,6 +60,7 @@ const Messages: React.FC = () => {
   const [messages, setMessages] = useState<EnhancedMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploadingFile, setUploadingFile] = useState(false);
   
   // Enhanced features state
   const [notifications, setNotifications] = useState(true);
@@ -68,7 +69,6 @@ const Messages: React.FC = () => {
   const [callDate, setCallDate] = useState('');
   const [callTime, setCallTime] = useState('');
   const [callDuration, setCallDuration] = useState(30);
-  const [scheduledCalls, setScheduledCalls] = useState<ScheduledCall[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -79,28 +79,103 @@ const Messages: React.FC = () => {
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation);
-      markMessagesAsRead(selectedConversation, user!.id);
+      // Skip markMessagesAsRead for now to avoid UUID errors - we'll implement it later
+      // markMessagesAsRead(selectedConversation, user!.id).then(() => {
+      //   loadConversations(true);
+      // });
     }
   }, [selectedConversation, user]);
 
-  const loadConversations = async () => {
+  // Add periodic refresh for conversations and messages (less aggressive)
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        // Only refresh if not currently loading to prevent flickering
+        if (!loading) {
+          // Refresh conversations to show new messages and update last message
+          const userConversations = await getConversationsByUser(user.id);
+          
+          // Only update if there are actual changes to prevent flickering
+          if (JSON.stringify(userConversations) !== JSON.stringify(conversations)) {
+            console.log('Conversations changed, updating...');
+            setConversations(userConversations);
+          }
+          
+          // If a conversation is selected, refresh its messages too
+          if (selectedConversation) {
+            const { getMessagesByConversation: getMessagesLocal } = await import('../../services/localStorageService');
+            const conversationMessages = await getMessagesLocal(selectedConversation);
+            if (JSON.stringify(conversationMessages) !== JSON.stringify(messages)) {
+              console.log('Messages changed, updating...');
+              setMessages(conversationMessages);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error during periodic refresh:', error);
+      }
+    }, 10000); // Refresh every 10 seconds instead of 5
+
+    return () => clearInterval(refreshInterval);
+  }, [user, selectedConversation, conversations, messages, loading]);
+
+  const loadConversations = async (skipLoading = false) => {
     if (!user) return;
     try {
-      setLoading(true);
+      if (!skipLoading) {
+        setLoading(true);
+      }
       const userConversations = await getConversationsByUser(user.id);
       console.log('Loaded conversations for Messages tab:', userConversations);
       setConversations(userConversations);
     } catch (error) {
       console.error('Error loading conversations:', error);
     } finally {
-      setLoading(false);
+      if (!skipLoading) {
+        setLoading(false);
+      }
     }
   };
 
   const loadMessages = async (conversationId: string) => {
     try {
-      const conversationMessages = await getMessagesByConversation(conversationId);
-      console.log('Loaded messages for conversation', conversationId, ':', conversationMessages);
+      console.log('Loading messages for conversation:', conversationId);
+      
+      // Try supabaseService first (which has localStorage fallback), then direct localStorage if needed
+      let conversationMessages;
+      try {
+        // Import getMessagesByConversation from supabaseService
+        const { getMessagesByConversation } = await import('../../services/supabaseService');
+        conversationMessages = await getMessagesByConversation(conversationId);
+        console.log('Loaded via supabaseService:', conversationMessages.length);
+      } catch (error) {
+        console.warn('supabaseService failed, trying localStorage directly:', error);
+        // Fallback to direct localStorage
+        const { getMessagesByConversation: getMessagesLocal } = await import('../../services/localStorageService');
+        conversationMessages = await getMessagesLocal(conversationId);
+        console.log('Loaded via localStorage:', conversationMessages.length);
+      }
+      
+      console.log('Final loaded messages for conversation', conversationId, ':', conversationMessages);
+      
+      // Debug file messages specifically
+      const fileMessages = conversationMessages.filter(msg => (msg as any).file_name);
+      console.log('Looking for messages in conversation:', conversationId);
+      console.log('Total messages found:', conversationMessages.length);
+      console.log('File messages found:', fileMessages.length);
+      if (fileMessages.length > 0) {
+        console.log('File message details:', fileMessages.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          file_name: (msg as any).file_name,
+          file_type: (msg as any).file_type,
+          conversation_id: msg.conversation_id,
+          has_file_data: !!(msg as any).file_data
+        })));
+      }
+      
       setMessages(conversationMessages);
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -115,12 +190,14 @@ const Messages: React.FC = () => {
       const conversation = conversations.find(conv => conv.id === selectedConversation);
       if (!conversation) return;
 
+      // Use the EXACT same conversation ID as the selected conversation
+      console.log('Creating regular message with conversation ID:', selectedConversation);
       const messageData = {
         sender_id: user.id,
         receiver_id: conversation.participant_id,
         content: newMessage.trim(),
         read: false,
-        conversation_id: selectedConversation
+        conversation_id: selectedConversation // Use the exact selected conversation ID
       };
 
       console.log('Sending message from Messages tab:', messageData);
@@ -139,8 +216,12 @@ const Messages: React.FC = () => {
       }
       
       setNewMessage('');
+      
+      // Refresh messages first, then conversations to ensure proper order
       await loadMessages(selectedConversation);
-      await loadConversations(); // Refresh conversation list
+      await loadConversations(true); // Skip loading state to prevent UI flicker
+      
+      console.log('Message sent and UI refreshed');
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -165,38 +246,103 @@ const Messages: React.FC = () => {
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File upload triggered');
     const file = event.target.files?.[0];
-    if (!file || !selectedConversation || !user) return;
+    console.log('Selected file:', file);
+    
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+    
+    if (!selectedConversation) {
+      console.log('No conversation selected');
+      alert('Please select a conversation first');
+      return;
+    }
+    
+    if (!user) {
+      console.log('No user logged in');
+      return;
+    }
 
-    // Simulate file upload (in real app, upload to cloud storage)
-    const fileUrl = URL.createObjectURL(file);
+    // Check file size (limit to 5MB for better performance)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    console.log('Starting file upload process...');
+    setUploadingFile(true);
     
     try {
       const conversation = conversations.find(conv => conv.id === selectedConversation);
-      if (!conversation) return;
+      if (!conversation) {
+        console.log('Conversation not found');
+        return;
+      }
 
-      const message: Omit<EnhancedMessage, 'id' | 'timestamp'> = {
+      // Convert file to base64 for localStorage persistence
+      const fileData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      console.log('File converted to base64');
+
+      // Use the EXACT same conversation ID as the selected conversation
+      console.log('Selected conversation ID:', selectedConversation);
+      console.log('Conversation participant:', conversation.participant_id);
+      console.log('Current user:', user.id);
+      
+      const message = {
         sender_id: user.id,
         receiver_id: conversation.participant_id,
         content: `📎 Shared a file: ${file.name}`,
         read: false,
-        conversation_id: selectedConversation,
-        file_url: fileUrl,
+        conversation_id: selectedConversation, // Use the exact selected conversation ID
         file_name: file.name,
         file_type: file.type,
-        file_size: file.size
+        file_size: file.size,
+        file_data: fileData // Store base64 data for persistence
       };
 
-      await createMessage(message);
+      console.log('Creating file message:', { ...message, file_data: '[BASE64_DATA]' }); // Don't log full base64
+      const createdMessage = await createMessage(message);
+      console.log('File message created successfully:', {
+        id: createdMessage.id,
+        content: createdMessage.content,
+        file_name: createdMessage.file_name,
+        file_type: createdMessage.file_type,
+        file_size: createdMessage.file_size,
+        has_file_data: !!(createdMessage as any).file_data,
+        conversation_id: createdMessage.conversation_id
+      });
+      
+      // Check localStorage directly
+      const storedMessages = JSON.parse(localStorage.getItem('gigcampus_messages') || '[]');
+      const fileMessages = storedMessages.filter((msg: any) => msg.file_name);
+      console.log('All file messages in localStorage:', fileMessages.length);
+      console.log('Latest file messages:', fileMessages.slice(-3));
+      
+      // Refresh messages and conversations
+      console.log('Refreshing messages and conversations...');
       await loadMessages(selectedConversation);
+      await loadConversations(true); // Skip loading state to prevent UI flicker
       
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      console.log('File upload completed successfully');
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload file. Please try again.');
+      alert(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -216,7 +362,8 @@ const Messages: React.FC = () => {
       status: 'scheduled'
     };
 
-    setScheduledCalls(prev => [...prev, newCall]);
+    // Note: In a real app, you would save this to a backend service
+    console.log('Call scheduled:', newCall);
 
     // Send notification about scheduled call
     await createNotification({
@@ -255,8 +402,15 @@ const Messages: React.FC = () => {
   };
 
   const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return <Image className="h-4 w-4" />;
-    return <FileText className="h-4 w-4" />;
+    if (fileType.startsWith('image/')) return <FileImage className="h-4 w-4 text-green-600" />;
+    if (fileType === 'application/pdf') return <File className="h-4 w-4 text-red-600" />;
+    if (fileType.includes('document') || fileType.includes('word')) return <FileText className="h-4 w-4 text-blue-600" />;
+    if (fileType.includes('text')) return <FileText className="h-4 w-4 text-gray-600" />;
+    return <File className="h-4 w-4 text-gray-500" />;
+  };
+
+  const isImageFile = (fileType: string) => {
+    return fileType.startsWith('image/');
   };
 
   if (!user) {
@@ -282,8 +436,15 @@ const Messages: React.FC = () => {
         <div className="h-[600px] flex">
           {/* Sidebar - Conversations List */}
           <div className="w-1/3 border-r border-gray-200 bg-gray-50">
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-medium text-gray-900">Conversations</h3>
+              <button
+                onClick={() => loadConversations()}
+                className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                title="Refresh conversations"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
             </div>
             <div className="overflow-y-auto h-full">
               {loading ? (
@@ -380,6 +541,44 @@ const Messages: React.FC = () => {
                         {/* Action Buttons */}
                         <div className="flex items-center space-x-2">
                           <button
+                            onClick={async () => {
+                              console.log('=== DEBUG INFO ===');
+                              console.log('Current messages:', messages);
+                              console.log('Messages with files:', messages.filter(m => (m as any).file_name));
+                              const stored = JSON.parse(localStorage.getItem('gigcampus_messages') || '[]');
+                              console.log('localStorage messages:', stored.length);
+                              console.log('localStorage file messages:', stored.filter((m: any) => m.file_name));
+                              console.log('Selected conversation:', selectedConversation);
+                              
+                              // Show all messages for this conversation
+                              console.log('=== ALL MESSAGES FOR CONVERSATION ===');
+                              const allForConv = stored.filter((m: any) => 
+                                m.conversation_id === selectedConversation ||
+                                [m.sender_id, m.receiver_id].sort().join('_') === selectedConversation
+                              );
+                              console.log('All messages for conversation:', allForConv.length);
+                              console.log('Message details:', allForConv.map((m: any) => ({
+                                id: m.id,
+                                content: m.content,
+                                conversation_id: m.conversation_id,
+                                sender_id: m.sender_id,
+                                receiver_id: m.receiver_id,
+                                file_name: m.file_name
+                              })));
+                              
+                              // Force reload messages from localStorage
+                              console.log('=== FORCE RELOAD ===');
+                              const { getMessagesByConversation } = await import('../../services/localStorageService');
+                              const freshMessages = await getMessagesByConversation(selectedConversation);
+                              console.log('Fresh messages from localStorage:', freshMessages.length);
+                              console.log('Fresh file messages:', freshMessages.filter(m => (m as any).file_name).length);
+                              setMessages(freshMessages);
+                            }}
+                            className="px-2 py-1 text-xs bg-red-500 text-white rounded"
+                          >
+                            DEBUG
+                          </button>
+                          <button
                             onClick={() => setNotifications(!notifications)}
                             className={`p-2 rounded-md transition-colors ${
                               notifications 
@@ -438,6 +637,17 @@ const Messages: React.FC = () => {
                     <div className="space-y-4">
                       {messages.map((message) => {
                         const enhancedMessage = message as EnhancedMessage;
+                        // Debug file messages
+                        if (enhancedMessage.file_name) {
+                          console.log('Rendering file message:', {
+                            id: enhancedMessage.id,
+                            file_name: enhancedMessage.file_name,
+                            file_type: enhancedMessage.file_type,
+                            file_size: enhancedMessage.file_size,
+                            has_file_data: !!enhancedMessage.file_data,
+                            has_file_url: !!enhancedMessage.file_url
+                          });
+                        }
                         return (
                           <div
                             key={message.id}
@@ -453,8 +663,23 @@ const Messages: React.FC = () => {
                               <p className="text-sm">{message.content}</p>
                               
                               {/* File attachment */}
-                              {enhancedMessage.file_url && (
+                              {(enhancedMessage.file_data || enhancedMessage.file_url || enhancedMessage.file_name) && (
                                 <div className="mt-2 p-2 bg-white bg-opacity-20 rounded border">
+                                  {/* Image preview for image files */}
+                                  {isImageFile(enhancedMessage.file_type || '') && (enhancedMessage.file_data || enhancedMessage.file_url) && (
+                                    <div className="mb-2">
+                                      <img
+                                        src={enhancedMessage.file_data || enhancedMessage.file_url}
+                                        alt={enhancedMessage.file_name}
+                                        className="max-w-full max-h-48 rounded object-contain"
+                                        style={{ maxWidth: '200px' }}
+                                        onError={(e) => {
+                                          console.error('Failed to load image:', enhancedMessage.file_name);
+                                          (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                      />
+                                    </div>
+                                  )}
                                   <div className="flex items-center space-x-2">
                                     {getFileIcon(enhancedMessage.file_type || '')}
                                     <div className="flex-1 min-w-0">
@@ -466,9 +691,16 @@ const Messages: React.FC = () => {
                                       </p>
                                     </div>
                                     <a
-                                      href={enhancedMessage.file_url}
+                                      href={enhancedMessage.file_data || enhancedMessage.file_url || '#'}
                                       download={enhancedMessage.file_name}
                                       className="p-1 hover:bg-white hover:bg-opacity-20 rounded"
+                                      title="Download file"
+                                      onClick={(e) => {
+                                        if (!enhancedMessage.file_data && !enhancedMessage.file_url) {
+                                          e.preventDefault();
+                                          alert('File data not available for download');
+                                        }
+                                      }}
                                     >
                                       <Download className="h-3 w-3" />
                                     </a>
@@ -503,11 +735,24 @@ const Messages: React.FC = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors flex items-center"
-                      title="Attach file"
+                      onClick={() => {
+                        console.log('File button clicked');
+                        console.log('File input ref:', fileInputRef.current);
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={uploadingFile}
+                      className={`px-3 py-2 rounded-md transition-colors flex items-center ${
+                        uploadingFile 
+                          ? 'text-gray-400 cursor-not-allowed' 
+                          : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                      }`}
+                      title={uploadingFile ? "Uploading file..." : "Attach file"}
                     >
-                      <Paperclip className="h-4 w-4" />
+                      {uploadingFile ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      ) : (
+                        <Paperclip className="h-4 w-4" />
+                      )}
                     </button>
                     <input
                       type="text"

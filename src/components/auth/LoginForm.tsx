@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { supabaseAuthService } from '../../services/supabaseAuthService';
 
 const LoginForm: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -9,6 +10,7 @@ const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [userType, setUserType] = useState<'student' | 'company'>('student');
   const [error, setError] = useState('');
+  const [resending, setResending] = useState(false);
   const { login, loading } = useAuth();
   const navigate = useNavigate();
 
@@ -20,7 +22,25 @@ const LoginForm: React.FC = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid email or password');
+      const msg = (err as any)?.message || 'Failed to sign in. Please try again.';
+      setError(msg);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email) {
+      setError('Enter your email, then click Resend to receive the verification link.');
+      return;
+    }
+    try {
+      setError('');
+      setResending(true);
+      await supabaseAuthService.resendVerificationEmail(email);
+      alert('Verification email sent. Please check your inbox (and spam).');
+    } catch (e: any) {
+      setError(e?.message || 'Failed to resend verification email');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -128,6 +148,15 @@ const LoginForm: React.FC = () => {
             >
               Forgot your password?
             </Link>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={!email || resending}
+              className="text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!email ? 'Enter your email to resend verification' : 'Resend verification email'}
+            >
+              {resending ? 'Resending…' : 'Resend verification email'}
+            </button>
           </div>
 
           <div>
@@ -150,15 +179,7 @@ const LoginForm: React.FC = () => {
           </div>
         </form>
 
-        {/* Supabase Auth Info */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">Supabase Authentication:</h3>
-          <div className="space-y-1 text-xs text-blue-700">
-            <p>• Secure authentication with Supabase</p>
-            <p>• Email verification required for new accounts</p>
-            <p>• Password reset available via email</p>
-          </div>
-        </div>
+        {/* Production: demo credentials removed */}
       </div>
     </div>
   );

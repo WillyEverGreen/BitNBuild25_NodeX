@@ -13,7 +13,7 @@ import {
 import { ResumeAnalysis } from "./aiService";
 
 // Utility functions for local storage
-const getFromStorage = <T>(key: string): T[] => {
+export const getFromStorage = <T>(key: string): T[] => {
   try {
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : [];
@@ -23,7 +23,7 @@ const getFromStorage = <T>(key: string): T[] => {
   }
 };
 
-const saveToStorage = <T>(key: string, data: T[]): void => {
+export const saveToStorage = <T>(key: string, data: T[]): void => {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {
@@ -31,7 +31,7 @@ const saveToStorage = <T>(key: string, data: T[]): void => {
   }
 };
 
-const generateId = (): string => {
+export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
 
@@ -303,18 +303,39 @@ export const updateBid = async (
 
 // Message Management
 export const createMessage = async (
-  messageData: Omit<Message, "id" | "timestamp">
+  messageData: any // Accept any format to handle file messages
 ): Promise<Message> => {
   const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
 
-  const newMessage: Message = {
+  const newMessage: any = {
     ...messageData,
     id: generateId(),
     timestamp: new Date().toISOString(),
   };
 
+  // Ensure conversation_id is set if not provided
+  if (!newMessage.conversation_id) {
+    newMessage.conversation_id = [newMessage.sender_id, newMessage.receiver_id].sort().join('_');
+  }
+
+  // Handle file attachments - ensure all file fields are preserved
+  if (messageData.file_data || messageData.file_url) {
+    console.log('Creating file message with attachment:', {
+      file_name: newMessage.file_name,
+      file_type: newMessage.file_type,
+      file_size: newMessage.file_size,
+      has_file_data: !!newMessage.file_data
+    });
+  }
+
+  console.log('Creating message in localStorage:', { 
+    ...newMessage, 
+    file_data: newMessage.file_data ? '[BASE64_DATA]' : undefined 
+  });
+  
   messages.push(newMessage);
   saveToStorage(STORAGE_KEYS.MESSAGES, messages);
+  console.log('Total messages after creation:', messages.length);
 
   return newMessage;
 };
@@ -323,22 +344,89 @@ export const getMessagesByConversation = async (
   conversationId: string
 ): Promise<Message[]> => {
   const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
-  return messages
+  console.log('Getting messages for conversation:', conversationId);
+  console.log('Total messages in storage:', messages.length);
+  
+  // Debug: Check if any messages have the exact conversation ID
+  const exactMatches = messages.filter(msg => msg.conversation_id === conversationId);
+  console.log('Messages with exact conversation ID match:', exactMatches.length);
+  
+  // Debug: Check file messages in all storage
+  const allFileMessages = messages.filter(msg => (msg as any).file_name);
+  console.log('All file messages in storage:', allFileMessages.length);
+  console.log('File messages conversation IDs:', allFileMessages.map(msg => ({
+    id: msg.id,
+    conversation_id: msg.conversation_id,
+    file_name: (msg as any).file_name
+  })));
+  
+  const filteredMessages = messages
     .filter((message) => {
       // Handle both old format (sender_id + receiver_id) and new format (conversation_id)
-      if (message.conversation_id) {
-        return message.conversation_id === conversationId;
+      // Check exact conversation_id match first
+      if (message.conversation_id === conversationId) {
+        return true;
       }
+      
       // For backward compatibility, create conversation ID from sender/receiver
       const msgConversationId = [message.sender_id, message.receiver_id].sort().join('_');
-      return msgConversationId === conversationId;
+      if (msgConversationId === conversationId) {
+        return true;
+      }
+      
+      // Additional check: if conversationId contains underscores, try both directions
+      if (conversationId.includes('_')) {
+        const [id1, id2] = conversationId.split('_');
+        const reverseId = [id2, id1].join('_');
+        if (message.conversation_id === reverseId) {
+          return true;
+        }
+        
+        // Check if message involves these two users
+        const messageUsers = [message.sender_id, message.receiver_id].sort();
+        const conversationUsers = [id1, id2].sort();
+        if (JSON.stringify(messageUsers) === JSON.stringify(conversationUsers)) {
+          return true;
+        }
+      }
+      
+      return false;
     })
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+  console.log('Filtered messages for conversation:', filteredMessages.length);
+  
+  // Debug file messages
+  console.log('All filtered messages:', filteredMessages.map(msg => ({
+    id: msg.id,
+    content: msg.content,
+    conversation_id: msg.conversation_id,
+    file_name: (msg as any).file_name,
+    has_file_data: !!(msg as any).file_data
+  })));
+  
+  const fileMessages = filteredMessages.filter(msg => (msg as any).file_name);
+  console.log('File messages detected:', fileMessages.length);
+  if (fileMessages.length > 0) {
+    console.log('File messages in conversation:', fileMessages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      file_name: (msg as any).file_name,
+      file_type: (msg as any).file_type,
+      has_file_data: !!(msg as any).file_data
+    })));
+  }
+  
+  return filteredMessages;
 };
 
 export const getConversationsByUser = async (userId: string): Promise<any[]> => {
   const messages = getFromStorage<Message>(STORAGE_KEYS.MESSAGES);
   const users = getFromStorage<Student | Company>(STORAGE_KEYS.USERS);
+  
+  console.log('Getting conversations for user:', userId);
+  console.log('Available messages:', messages.length);
+  console.log('Available users:', users.length);
   
   // Group messages by conversation
   const conversationMap = new Map();
@@ -347,19 +435,16 @@ export const getConversationsByUser = async (userId: string): Promise<any[]> => 
     let conversationId: string;
     let participantId: string;
     
-    if (message.conversation_id) {
-      conversationId = message.conversation_id;
-      participantId = message.sender_id === userId ? message.receiver_id : message.sender_id;
-    } else {
-      // Backward compatibility
-      conversationId = [message.sender_id, message.receiver_id].sort().join('_');
-      participantId = message.sender_id === userId ? message.receiver_id : message.sender_id;
-    }
+    // Always use consistent conversation ID generation
+    conversationId = [message.sender_id, message.receiver_id].sort().join('_');
+    participantId = message.sender_id === userId ? message.receiver_id : message.sender_id;
     
     // Only include conversations involving the current user
     if (message.sender_id === userId || message.receiver_id === userId) {
       if (!conversationMap.has(conversationId)) {
         const participant = users.find(u => u.id === participantId);
+        console.log('Creating conversation:', conversationId, 'with participant:', participant?.name);
+        
         conversationMap.set(conversationId, {
           id: conversationId,
           participant_id: participantId,
@@ -376,7 +461,7 @@ export const getConversationsByUser = async (userId: string): Promise<any[]> => 
       conversation.messages.push(message);
       
       // Update last message if this is newer
-      if (new Date(message.timestamp) > new Date(conversation.last_message_time)) {
+      if (new Date(message.timestamp) >= new Date(conversation.last_message_time)) {
         conversation.last_message = message.content;
         conversation.last_message_time = message.timestamp;
       }
@@ -389,8 +474,11 @@ export const getConversationsByUser = async (userId: string): Promise<any[]> => 
   });
   
   // Convert map to array and sort by last message time
-  return Array.from(conversationMap.values())
+  const conversations = Array.from(conversationMap.values())
     .sort((a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime());
+  
+  console.log('Final conversations for user:', conversations);
+  return conversations;
 };
 
 export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<void> => {
@@ -520,6 +608,111 @@ export const initializeSampleData = () => {
         available_hours: 20,
       } as Student,
       {
+        id: "student2",
+        email: "alice@test.com",
+        name: "Alice Johnson",
+        type: "student",
+        created_at: new Date().toISOString(),
+        is_verified: true,
+        university: "Stanford University",
+        year: 4,
+        major: "Software Engineering",
+        skills: ["JavaScript", "React", "TypeScript", "Node.js", "AWS"],
+        interests: ["Full Stack Development", "Cloud Computing"],
+        rating: 4.8,
+        completed_projects: 8,
+        total_earnings: 4200,
+        resume_uploaded: true,
+        available_hours: 25,
+        resume_analysis: {
+          overallRating: 2650,
+          skillRating: 2800,
+          experienceRating: 2400,
+          educationRating: 2750,
+          summary: "Exceptional full-stack developer with strong technical skills and impressive project portfolio.",
+          skills: ["JavaScript", "React", "TypeScript", "Node.js", "AWS", "MongoDB", "Docker"],
+          strengths: ["Strong technical foundation", "Full-stack expertise", "Cloud platform experience"],
+          weaknesses: ["Could benefit from more leadership experience", "Limited mobile development"],
+          suggestions: ["Consider mobile development courses", "Seek team lead opportunities"],
+          industryFit: ["Software Development", "Web Development", "Cloud Computing"],
+          keywordMatches: 45,
+          technicalDepth: 85,
+          professionalLevel: 78,
+          confidence: 0.92,
+          analyzed_at: new Date().toISOString()
+        }
+      } as Student,
+      {
+        id: "student3",
+        email: "bob@test.com",
+        name: "Bob Chen",
+        type: "student",
+        created_at: new Date().toISOString(),
+        is_verified: true,
+        university: "UC Berkeley",
+        year: 2,
+        major: "Data Science",
+        skills: ["Python", "Machine Learning", "SQL", "Pandas"],
+        interests: ["Data Analysis", "AI", "Statistics"],
+        rating: 4.2,
+        completed_projects: 3,
+        total_earnings: 1800,
+        resume_uploaded: true,
+        available_hours: 15,
+        resume_analysis: {
+          overallRating: 2100,
+          skillRating: 2300,
+          experienceRating: 1800,
+          educationRating: 2200,
+          summary: "Promising data science student with strong analytical skills and growing experience.",
+          skills: ["Python", "Machine Learning", "SQL", "Pandas", "NumPy", "Scikit-learn"],
+          strengths: ["Strong mathematical foundation", "Data analysis expertise", "Quick learner"],
+          weaknesses: ["Limited industry experience", "Could improve communication skills"],
+          suggestions: ["Seek internship opportunities", "Work on presentation skills"],
+          industryFit: ["Data Science", "Analytics", "Machine Learning"],
+          keywordMatches: 32,
+          technicalDepth: 72,
+          professionalLevel: 58,
+          confidence: 0.87,
+          analyzed_at: new Date().toISOString()
+        }
+      } as Student,
+      {
+        id: "student4",
+        email: "carol@test.com",
+        name: "Carol Williams",
+        type: "student",
+        created_at: new Date().toISOString(),
+        is_verified: true,
+        university: "Harvard University",
+        year: 4,
+        major: "Computer Science",
+        skills: ["Java", "Spring Boot", "Microservices", "Kubernetes"],
+        interests: ["Backend Development", "System Architecture"],
+        rating: 4.6,
+        completed_projects: 6,
+        total_earnings: 3500,
+        resume_uploaded: true,
+        available_hours: 30,
+        resume_analysis: {
+          overallRating: 2450,
+          skillRating: 2500,
+          experienceRating: 2300,
+          educationRating: 2550,
+          summary: "Experienced backend developer with strong system design skills and enterprise experience.",
+          skills: ["Java", "Spring Boot", "Microservices", "Kubernetes", "Docker", "PostgreSQL"],
+          strengths: ["Enterprise development experience", "System architecture knowledge", "Strong problem-solving"],
+          weaknesses: ["Limited frontend experience", "Could expand cloud platform knowledge"],
+          suggestions: ["Learn React or Vue.js", "Get AWS/Azure certifications"],
+          industryFit: ["Backend Development", "Enterprise Software", "System Architecture"],
+          keywordMatches: 38,
+          technicalDepth: 82,
+          professionalLevel: 75,
+          confidence: 0.89,
+          analyzed_at: new Date().toISOString()
+        }
+      } as Student,
+      {
         id: "company1",
         email: "company@test.com",
         name: "Tech Solutions Inc",
@@ -539,6 +732,9 @@ export const initializeSampleData = () => {
     // Create sample passwords
     const passwords = [
       { email: "student@test.com", password: "password123" },
+      { email: "alice@test.com", password: "password123" },
+      { email: "bob@test.com", password: "password123" },
+      { email: "carol@test.com", password: "password123" },
       { email: "company@test.com", password: "password123" },
     ];
     saveToStorage("bnbb_passwords", passwords);
@@ -595,6 +791,7 @@ export const initializeSampleData = () => {
         student_rating: 4.5,
         amount: 1000,
         proposal: "I have extensive experience in React and Node.js development. I can deliver a modern, responsive e-commerce website with all the features you need including payment integration, user authentication, and admin dashboard.",
+        timeline: "25 days",
         delivery_time: 25,
         status: "pending",
         created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
@@ -607,6 +804,7 @@ export const initializeSampleData = () => {
         student_rating: 4.8,
         amount: 1150,
         proposal: "I'm a full-stack developer with 3+ years of experience. I specialize in React, Node.js, and MongoDB. I can create a scalable e-commerce platform with modern UI/UX design and robust backend architecture.",
+        timeline: "20 days",
         delivery_time: 20,
         status: "pending",
         created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
@@ -619,6 +817,7 @@ export const initializeSampleData = () => {
         student_rating: 4.2,
         amount: 900,
         proposal: "Budget-friendly solution without compromising quality. I have built multiple e-commerce sites using React and Node.js. I can deliver within your timeline with all essential features.",
+        timeline: "30 days",
         delivery_time: 30,
         status: "pending",
         created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
@@ -631,6 +830,7 @@ export const initializeSampleData = () => {
         student_rating: 4.9,
         amount: 750,
         proposal: "I'm a UI/UX designer with expertise in mobile app design. I'll create modern, user-friendly interfaces using Figma with interactive prototypes and design systems.",
+        timeline: "15 days",
         delivery_time: 15,
         status: "pending",
         created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
@@ -643,6 +843,7 @@ export const initializeSampleData = () => {
         student_rating: 4.3,
         amount: 850,
         proposal: "Creative mobile app designer with focus on fitness apps. I'll deliver pixel-perfect designs with smooth user flows and modern aesthetics using Figma and Adobe XD.",
+        timeline: "18 days",
         delivery_time: 18,
         status: "pending",
         created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
@@ -813,8 +1014,19 @@ export const createTransaction = async (
 
 export const getTransactionsByUserId = async (userId: string): Promise<Transaction[]> => {
   const transactions = getFromStorage<Transaction>(STORAGE_KEYS.TRANSACTIONS);
-  return transactions
-    .filter(transaction => transaction.user_id === userId)
+  console.log('All transactions in localStorage:', transactions);
+  console.log('Looking for user ID:', userId);
+  
+  // Filter transactions where user is either sender or receiver
+  const userTransactions = transactions.filter(transaction => 
+    transaction.from_user_id === userId || 
+    transaction.to_user_id === userId ||
+    transaction.user_id === userId // Keep backward compatibility
+  );
+  
+  console.log('Found transactions for user:', userTransactions);
+  
+  return userTransactions
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 };
 
@@ -1048,6 +1260,54 @@ export const releaseEscrowToStudent = async (
 };
 
 // Resume Analysis Management
+// Get all students with resume analysis for leaderboard
+export const getStudentsWithResumeAnalysis = async (): Promise<Student[]> => {
+  const users = getFromStorage<Student | Company>(STORAGE_KEYS.USERS);
+  return users
+    .filter((user): user is Student => user.type === 'student' && !!(user as Student).resume_analysis)
+    .sort((a, b) => {
+      const aRating = (a as Student).resume_analysis?.overallRating || 0;
+      const bRating = (b as Student).resume_analysis?.overallRating || 0;
+      return bRating - aRating; // Sort descending
+    });
+};
+
+// Get students ranked by specific criteria
+export const getStudentLeaderboard = async (sortBy: 'overall' | 'skills' | 'experience' | 'education' = 'overall'): Promise<Student[]> => {
+  const students = await getStudentsWithResumeAnalysis();
+  
+  return students.sort((a, b) => {
+    const aAnalysis = (a as Student).resume_analysis;
+    const bAnalysis = (b as Student).resume_analysis;
+    
+    if (!aAnalysis || !bAnalysis) return 0;
+    
+    let aScore = 0;
+    let bScore = 0;
+    
+    switch (sortBy) {
+      case 'overall':
+        aScore = aAnalysis.overallRating || 0;
+        bScore = bAnalysis.overallRating || 0;
+        break;
+      case 'skills':
+        aScore = aAnalysis.skillRating || 0;
+        bScore = bAnalysis.skillRating || 0;
+        break;
+      case 'experience':
+        aScore = aAnalysis.experienceRating || 0;
+        bScore = bAnalysis.experienceRating || 0;
+        break;
+      case 'education':
+        aScore = aAnalysis.educationRating || 0;
+        bScore = bAnalysis.educationRating || 0;
+        break;
+    }
+    
+    return bScore - aScore; // Sort descending
+  });
+};
+
 export const saveResumeAnalysis = async (
   userId: string,
   analysis: ResumeAnalysis

@@ -19,9 +19,12 @@ import {
   CheckCircle,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  X
 } from 'lucide-react';
 import BackButton from '../common/BackButton';
+import RatingNotificationBanner from '../rating/RatingNotificationBanner';
+import ProjectRatingForm from '../rating/ProjectRatingForm';
 
 const StudentWallet: React.FC = () => {
   const { user } = useAuth();
@@ -47,6 +50,16 @@ const StudentWallet: React.FC = () => {
 
   // UI state
   const [showAccountNumbers, setShowAccountNumbers] = useState(false);
+  
+  // Rating modal state
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingData, setRatingData] = useState<{
+    projectId: string;
+    userToRateId: string;
+    userToRateType: 'student' | 'company';
+    projectTitle: string;
+    rateeName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -138,6 +151,59 @@ const StudentWallet: React.FC = () => {
     }
   };
 
+  const handleRateClick = async (projectId: string, userToRateId: string, userToRateType: 'student' | 'company') => {
+    try {
+      // Get project details
+      const { getProjectById } = await import('../../services/supabaseService');
+      const { getUserById } = await import('../../services/supabaseService');
+      
+      const project = await getProjectById(projectId);
+      const userToRate = await getUserById(userToRateId);
+      
+      setRatingData({ 
+        projectId, 
+        userToRateId, 
+        userToRateType,
+        projectTitle: project?.title || 'Unknown Project',
+        rateeName: userToRate?.name || 'Unknown User'
+      });
+      setShowRatingModal(true);
+    } catch (error) {
+      console.error('Error loading rating data:', error);
+      // Fallback with basic data
+      setRatingData({ 
+        projectId, 
+        userToRateId, 
+        userToRateType,
+        projectTitle: 'Project',
+        rateeName: userToRateType === 'company' ? 'Company' : 'Student'
+      });
+      setShowRatingModal(true);
+    }
+  };
+
+  const handleRatingSubmit = async (ratingFormData: any) => {
+    if (!ratingData || !user) return;
+
+    try {
+      const { createProjectRating } = await import('../../services/projectRatingService');
+      await createProjectRating(
+        ratingData.projectId,
+        user.id,
+        ratingData.userToRateId,
+        'student',
+        ratingFormData
+      );
+
+      alert('Rating submitted successfully! Thank you for your feedback.');
+      setShowRatingModal(false);
+      setRatingData(null);
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('Failed to submit rating. Please try again.');
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -206,6 +272,9 @@ const StudentWallet: React.FC = () => {
         <h1 className="text-3xl font-bold text-gray-900 mt-4">Student Wallet</h1>
         <p className="text-gray-600 mt-2">Manage your earnings and withdrawals</p>
       </div>
+
+      {/* Rating Notifications */}
+      <RatingNotificationBanner onRateClick={handleRateClick} />
 
       {/* Wallet Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -558,6 +627,31 @@ const StudentWallet: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && ratingData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Rate Your Experience</h3>
+              <button
+                onClick={() => setShowRatingModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <ProjectRatingForm
+              rateeType={ratingData.userToRateType}
+              rateeName={ratingData.rateeName}
+              projectTitle={ratingData.projectTitle}
+              onSubmit={handleRatingSubmit}
+              onCancel={() => setShowRatingModal(false)}
+            />
           </div>
         </div>
       )}

@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Student, Project, Bid } from '../../types';
-import { getProjects, getBidsByStudent, getWalletByUserId, getTransactionsByUserId } from '../../services/supabaseService';
+import { Student, Project } from '../../types';
+import { getProjects, getBidsByStudent, getTransactionsByUserId } from '../../services/supabaseService';
 import { Star, DollarSign, Clock, TrendingUp, Briefcase, List, Hand, HelpCircle, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OpportunityList from '../opportunities/OpportunityList';
 import RatingDisplay from '../rating/RatingDisplay';
 import RatingHistory from '../rating/RatingHistory';
+import Leaderboard from '../leaderboard/Leaderboard';
+import PendingRatings from '../rating/PendingRatings';
+import ProjectRatingDisplay from '../rating/ProjectRatingDisplay';
+import SkillRatingDisplay from '../rating/SkillRatingDisplay';
+import { getRatingsForUser, getRatingStats } from '../../services/projectRatingService';
 
 const StudentDashboard: React.FC = () => {
   const { user } = useAuth();
   const student = user as Student;
   const [stats, setStats] = useState({
-    totalProjects: 0,
-    activeBids: 0,
-    completedProjects: 0,
-    totalEarnings: 0
+    activeProjects: 0,
+    pendingBids: 0,
+    totalEarnings: 0,
+    pendingEarnings: 0
   });
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [showOpportunities, setShowOpportunities] = useState(false);
   const [recommendedProjects, setRecommendedProjects] = useState<Project[]>([]);
-  const [recentBids, setRecentBids] = useState<Bid[]>([]);
+  const [projectRatings, setProjectRatings] = useState<any[]>([]);
+  const [ratingStats, setRatingStats] = useState<any>(null);
 
   useEffect(() => {
     if (user && user.type === 'student') {
@@ -54,13 +58,11 @@ const StudentDashboard: React.FC = () => {
       
       // Get student's bids
       const bids = await getBidsByStudent(student.id);
-      setRecentBids(bids.slice(0, 3));
       
       // Calculate real stats
       const pendingBids = bids.filter(bid => bid.status === 'pending').length;
       
-      // Get wallet and transaction data for earnings
-      const wallet = await getWalletByUserId(student.id);
+      // Get transaction data for earnings
       const transactions = await getTransactionsByUserId(student.id);
       
       // Calculate earnings from completed projects (escrow releases)
@@ -81,6 +83,12 @@ const StudentDashboard: React.FC = () => {
         totalEarnings: completedEarnings,
         pendingEarnings
       });
+      
+      // Load project ratings
+      const ratings = getRatingsForUser(student.id);
+      const stats = getRatingStats(student.id);
+      setProjectRatings(ratings);
+      setRatingStats(stats);
       
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -166,6 +174,24 @@ const StudentDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <RatingDisplay userId={student.id} showDetails={true} />
         <RatingHistory userId={student.id} />
+      </div>
+      
+      {/* Project Ratings & Pending Ratings */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <ProjectRatingDisplay
+          ratings={projectRatings}
+          stats={ratingStats}
+          userType="student"
+          userName={student.name}
+          showReviews={true}
+          maxReviews={3}
+        />
+        <PendingRatings />
+      </div>
+
+      {/* Skill Rating */}
+      <div className="mb-8">
+        <SkillRatingDisplay studentId={student.id} />
       </div>
 
       {/* Resume Analysis Display */}
@@ -391,6 +417,11 @@ const StudentDashboard: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Leaderboard Section */}
+      <div className="mb-8">
+        <Leaderboard />
       </div>
 
       {/* Opportunities Modal */}

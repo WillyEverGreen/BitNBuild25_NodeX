@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage, getEscrowsByProjectId, updateEscrowStatus } from '../../services/supabaseService';
+import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage, getEscrowsByProjectId, updateEscrowStatus, ensureConversation } from '../../services/supabaseService';
 import { Bid, Project, Student } from '../../types';
 import BackButton from '../common/BackButton';
+import ReleaseFunds from '../escrow/ReleaseFunds';
 import { 
   DollarSign, 
   Clock, 
@@ -35,6 +36,8 @@ const ProjectBids: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('amount_low');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showReleaseFunds, setShowReleaseFunds] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -60,8 +63,34 @@ const ProjectBids: React.FC = () => {
       // Enhance bids with student data and skill matching
       const enhancedBids: BidWithStudent[] = await Promise.all(
         projectBids.map(async (bid) => {
-          const student = await getUserById(bid.student_id) as Student;
-          const skillMatch = calculateSkillMatch(student.skills, projectData.skills);
+          let student: Student;
+          try {
+            student = await getUserById(bid.student_id) as Student;
+          } catch (e) {
+            // Fallback minimal profile when RLS prevents access
+            student = {
+              id: bid.student_id,
+              email: '',
+              name: bid.student_name || 'Student',
+              type: 'student',
+              created_at: new Date().toISOString(),
+              is_verified: true,
+              university: '',
+              year: 0,
+              major: '',
+              skills: [],
+              interests: [],
+              rating: bid.student_rating || 5,
+              completed_projects: 0,
+              total_earnings: 0,
+              resume_uploaded: false,
+              available_hours: 0,
+            } as Student;
+          }
+
+          // Use resume analysis skills if available, otherwise fall back to profile skills
+          const studentSkills = student?.resume_analysis?.skills || student?.skills || [];
+          const skillMatch = calculateSkillMatch(studentSkills, projectData.skills);
           return {
             ...bid,
             student,
@@ -121,9 +150,9 @@ const ProjectBids: React.FC = () => {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(bid => 
-        bid.student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bid.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bid.proposal.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bid.student.skills.some(skill => 
+        (bid.student?.resume_analysis?.skills || bid.student?.skills || []).some(skill => 
           skill.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
@@ -147,12 +176,25 @@ const ProjectBids: React.FC = () => {
         otherBids.map(bid => updateBid(bid.id, { status: 'rejected' }))
       );
 
-      // Create initial conversation message to establish chat
-      const conversationId = [user!.id, studentId].sort().join('_');
+      // Ensure a conversation exists and create initial message to establish chat
+      const conversationId = await ensureConversation(user!.id, studentId, project?.title);
       await createMessage({
         sender_id: user!.id,
         receiver_id: studentId,
-        content: `🎉 Congratulations ${studentName}! Your bid for "${project?.title}" has been accepted. Let's discuss the project details and get started!`,
+        content: `🎉 **BID ACCEPTED** 🎉
+
+Congratulations ${studentName}! 
+
+Your bid for "${project?.title}" has been officially accepted!
+
+💰 **Project Budget:** $${project?.budget.toLocaleString()}
+⏰ **Timeline:** ${project?.duration}
+📋 **Next Steps:** Let's discuss the project requirements and timeline in detail.
+
+I'm excited to work with you on this project. Please reply to this message to start our collaboration!
+
+Best regards,
+${user!.name}`,
         read: false,
         conversation_id: conversationId
       });
@@ -202,10 +244,10 @@ const ProjectBids: React.FC = () => {
         )
       );
 
-      // Reload bids to reflect changes
+      // Reload and navigate to chat with the accepted student
       await loadProjectAndBids();
-      
-      alert(`Bid accepted! ${studentName} has been notified and a conversation has been started. Check your Messages tab to continue the discussion.`);
+      alert('Bid accepted. Opening chat…');
+      navigate(`/chat?with=${studentId}&name=${encodeURIComponent(studentName)}&project=${encodeURIComponent(project?.title || '')}`);
     } catch (error) {
       console.error('Error accepting bid:', error);
       alert('Failed to accept bid. Please try again.');
@@ -237,6 +279,18 @@ const ProjectBids: React.FC = () => {
   const handleStartChat = (studentId: string, studentName: string) => {
     // Navigate to chat with the specific student
     navigate(`/chat?with=${studentId}&name=${studentName}&project=${project?.title}`);
+  };
+
+  const handleShowReleaseFunds = (studentId: string, studentName: string) => {
+    setSelectedStudent({ id: studentId, name: studentName });
+    setShowReleaseFunds(true);
+  };
+
+  const handleReleaseFundsSuccess = () => {
+    setShowReleaseFunds(false);
+    setSelectedStudent(null);
+    // Optionally reload bids to reflect any changes
+    loadProjectAndBids();
   };
 
   const getRankIcon = (index: number) => {
@@ -406,16 +460,16 @@ const ProjectBids: React.FC = () => {
                     {getRankIcon(index)}
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{bid.student.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{bid.student?.name || 'Unknown Student'}</h3>
                     <div className="flex items-center space-x-2 mt-1">
                       <div className="flex items-center">
                         <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                        <span className="text-sm text-gray-600 ml-1">{bid.student.rating}</span>
+                        <span className="text-sm text-gray-600 ml-1">{bid.student?.rating || 0}</span>
                       </div>
                       <span className="text-gray-300">•</span>
-                      <span className="text-sm text-gray-600">{bid.student.university}</span>
+                      <span className="text-sm text-gray-600">{bid.student?.university || 'Unknown University'}</span>
                       <span className="text-gray-300">•</span>
-                      <span className="text-sm text-gray-600">{bid.student.completed_projects} projects</span>
+                      <span className="text-sm text-gray-600">{bid.student?.completed_projects || 0} projects</span>
                     </div>
                   </div>
                 </div>
@@ -445,7 +499,7 @@ const ProjectBids: React.FC = () => {
                 </div>
                 <div className="text-center p-3 bg-orange-50 rounded-lg">
                   <DollarSign className="h-5 w-5 text-orange-600 mx-auto mb-1" />
-                  <p className="text-lg font-bold text-gray-900">${bid.student.total_earnings.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-gray-900">${(bid.student?.total_earnings || 0).toLocaleString()}</p>
                   <p className="text-xs text-gray-600">Total Earned</p>
                 </div>
               </div>
@@ -458,7 +512,7 @@ const ProjectBids: React.FC = () => {
               <div className="mb-4">
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Skills:</h4>
                 <div className="flex flex-wrap gap-2">
-                  {bid.student.skills.map((skill) => {
+                  {(bid.student?.resume_analysis?.skills || bid.student?.skills || []).map((skill) => {
                     const isMatching = project.skills.some(projectSkill => 
                       projectSkill.toLowerCase().includes(skill.toLowerCase()) ||
                       skill.toLowerCase().includes(projectSkill.toLowerCase())
@@ -483,7 +537,7 @@ const ProjectBids: React.FC = () => {
                 <span>Submitted: {new Date(bid.created_at).toLocaleDateString()}</span>
                 <div className="flex space-x-2">
                   <button 
-                    onClick={() => handleStartChat(bid.student_id, bid.student.name)}
+                    onClick={() => handleStartChat(bid.student_id, bid.student?.name || 'Unknown Student')}
                     className="flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                   >
                     <MessageSquare className="h-3 w-3 mr-1" />
@@ -492,7 +546,7 @@ const ProjectBids: React.FC = () => {
                   {isCompany && bid.status === 'pending' && (
                     <>
                       <button 
-                        onClick={() => handleAcceptBid(bid.id, bid.student_id, bid.student.name)}
+                        onClick={() => handleAcceptBid(bid.id, bid.student_id, bid.student?.name || 'Unknown Student')}
                         className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
@@ -507,6 +561,15 @@ const ProjectBids: React.FC = () => {
                       </button>
                     </>
                   )}
+                  {isCompany && bid.status === 'accepted' && (
+                    <button 
+                      onClick={() => handleShowReleaseFunds(bid.student_id, bid.student?.name || 'Unknown Student')}
+                      className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                    >
+                      <DollarSign className="h-3 w-3 mr-1" />
+                      Release Funds
+                    </button>
+                  )}
                   {isStudent && bid.student_id === user?.id && bid.status === 'accepted' && (
                     <span className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg">
                       <CheckCircle className="h-3 w-3 mr-1" />
@@ -517,6 +580,32 @@ const ProjectBids: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Release Funds Modal */}
+      {showReleaseFunds && selectedStudent && project && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-gray-900">Release Funds</h2>
+              <button
+                onClick={() => setShowReleaseFunds(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="p-4">
+              <ReleaseFunds
+                projectId={project.id}
+                projectTitle={project.title}
+                studentId={selectedStudent.id}
+                studentName={selectedStudent.name}
+                onSuccess={handleReleaseFundsSuccess}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

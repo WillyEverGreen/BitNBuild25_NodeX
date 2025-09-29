@@ -19,11 +19,14 @@ import CompanyWallet from "./components/wallet/CompanyWallet";
 import StudentWallet from "./components/wallet/StudentWallet";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
 import MyBids from "./components/pages/MyBids";
 import MyProjects from "./components/pages/MyProjects";
 import PostProject from "./components/pages/PostProject";
 import Profile from "./components/pages/Profile";
-import Messages from "./components/pages/Messages";
+// Route Messages to chat interface for simpler UX
+import PaymentsRedirect from "./components/pages/PaymentsRedirect";
 import NotFound from "./components/pages/NotFound";
 
 function App() {
@@ -39,6 +42,8 @@ function App() {
             <Route path="/auth-test" element={<SupabaseAuthTest />} />
             <Route path="/login" element={<LoginForm />} />
             <Route path="/register" element={<RegisterForm />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             
             {/* Protected routes with navbar */}
             <Route path="/" element={<Layout />}>
@@ -54,7 +59,8 @@ function App() {
               <Route path="my-projects" element={<MyProjects />} />
               <Route path="post-project" element={<PostProject />} />
               <Route path="profile" element={<Profile />} />
-              <Route path="messages" element={<Messages />} />
+              <Route path="messages" element={<EnhancedChatInterface />} />
+              <Route path="payments" element={<PaymentsRedirect />} />
               <Route path="chat" element={<EnhancedChatInterface />} />
               <Route path="wallet" element={<StudentWallet />} />
               <Route path="company-wallet" element={<CompanyWallet />} />
