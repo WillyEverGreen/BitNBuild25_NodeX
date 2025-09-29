@@ -58,10 +58,24 @@ const RegisterForm: React.FC = () => {
       };
 
       await register(userData, password);
-      navigate('/dashboard');
+      
+      // Show success message for email verification
+      alert('Account created successfully! Please check your email to verify your account before signing in.');
+      navigate('/login');
     } catch (error: any) {
       console.error('Registration error:', error);
-      alert(error.message || 'Registration failed. Please try again.');
+      let msg = error.message || 'Registration failed. Please try again.';
+      
+      // Handle common Supabase registration errors
+      if (msg.includes('User already registered')) {
+        msg = 'An account with this email already exists. Please sign in instead.';
+      } else if (msg.includes('Password should be at least')) {
+        msg = 'Password must be at least 6 characters long.';
+      } else if (msg.includes('Invalid email')) {
+        msg = 'Please enter a valid email address.';
+      }
+      
+      alert(msg);
     } finally {
       setLoading(false);
     }

@@ -1,52 +1,10 @@
 import { supabase } from '../config/supabase';
 import { Project, Bid, Message, Notification, Opportunity, Escrow, Transaction, BankAccount } from '../types';
 
-// Utility function to generate UUID
-const generateId = (): string => {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-};
-
-// Check if Supabase is properly configured
-const isSupabaseConfigured = () => {
-  return import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
-};
-
-// Mock data for when Supabase is not configured
-const mockProjects: Project[] = [
-  {
-    id: 'mock1',
-    title: 'Sample E-commerce Website',
-    description: 'A modern e-commerce website with payment integration',
-    budget: 2500,
-    deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    duration: '4 weeks',
-    skills: ['React', 'Node.js', 'MongoDB'],
-    category: 'Web Development',
-    client_id: 'company1',
-    client_name: 'Tech Solutions Inc',
-    client_rating: 5.0,
-    status: 'open',
-    bids_count: 0,
-    created_at: new Date().toISOString()
-  }
-];
-
 // Project Management
 export const createProject = async (
   projectData: Omit<Project, "id" | "created_at">
 ): Promise<Project> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using mock data');
-    const mockProject: Project = {
-      ...projectData,
-      id: generateId(),
-      created_at: new Date().toISOString(),
-      bids_count: 0,
-    };
-    mockProjects.push(mockProject);
-    return mockProject;
-  }
-
   const { data, error } = await supabase
     .from('projects')
     .insert([{
@@ -64,11 +22,6 @@ export const createProject = async (
 };
 
 export const getProjects = async (): Promise<Project[]> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using mock data');
-    return mockProjects;
-  }
-
   const { data, error } = await supabase
     .from('projects')
     .select('*')
@@ -82,12 +35,6 @@ export const getProjects = async (): Promise<Project[]> => {
 };
 
 export const getProjectById = async (id: string): Promise<Project | null> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage getProjectById');
-    const { getProjectById: getProjectLocal } = await import('./localStorageService');
-    return await getProjectLocal(id);
-  }
-
   try {
     const { data, error } = await supabase
       .from('projects')
@@ -99,16 +46,13 @@ export const getProjectById = async (id: string): Promise<Project | null> => {
       if ((error as any).code === 'PGRST116') {
         return null; // Project not found
       }
-      console.warn('Supabase project fetch failed, using localStorage fallback:', error);
-      const { getProjectById: getProjectLocal } = await import('./localStorageService');
-      return await getProjectLocal(id);
+      throw new Error(`Failed to fetch project: ${error.message}`);
     }
 
     return data as Project;
   } catch (error) {
-    console.warn('Error fetching project, using localStorage fallback:', error);
-    const { getProjectById: getProjectLocal } = await import('./localStorageService');
-    return await getProjectLocal(id);
+    console.error('Error fetching project:', error);
+    throw error;
   }
 };
 
@@ -154,17 +98,6 @@ export const deleteProject = async (id: string): Promise<void> => {
 
 // Bid Management
 export const createBid = async (bidData: Omit<Bid, "id" | "created_at">): Promise<Bid> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using mock bid');
-    const mockBid: Bid = {
-      ...bidData,
-      id: generateId(),
-      created_at: new Date().toISOString(),
-      status: "pending",
-    };
-    return mockBid;
-  }
-
   try {
     const { data, error } = await supabase
       .from('bids')
@@ -173,9 +106,7 @@ export const createBid = async (bidData: Omit<Bid, "id" | "created_at">): Promis
       .single();
 
     if (error) {
-      console.warn('Supabase bid insert failed, using localStorage fallback:', error);
-      const { createBid: createBidLocal } = await import('./localStorageService');
-      return await createBidLocal(bidData);
+      throw new Error(`Failed to create bid: ${error.message}`);
     }
 
     // Update project bids count (best-effort)
@@ -187,19 +118,12 @@ export const createBid = async (bidData: Omit<Bid, "id" | "created_at">): Promis
 
     return data as Bid;
   } catch (error) {
-    console.warn('Error creating bid, using localStorage fallback:', error);
-    const { createBid: createBidLocal } = await import('./localStorageService');
-    return await createBidLocal(bidData);
+    console.error('Error creating bid:', error);
+    throw error;
   }
 };
 
 export const getBidsByProject = async (projectId: string): Promise<Bid[]> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage bids');
-    const { getBidsByProject: getBidsLocal } = await import('./localStorageService');
-    return await getBidsLocal(projectId);
-  }
-
   try {
     const { data, error } = await supabase
       .from('bids')
@@ -208,16 +132,13 @@ export const getBidsByProject = async (projectId: string): Promise<Bid[]> => {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase bids fetch failed, using localStorage fallback:', error);
-      const { getBidsByProject: getBidsLocal } = await import('./localStorageService');
-      return await getBidsLocal(projectId);
+      throw new Error(`Failed to fetch bids: ${error.message}`);
     }
 
     return data as Bid[];
   } catch (error) {
-    console.warn('Error fetching bids, using localStorage fallback:', error);
-    const { getBidsByProject: getBidsLocal } = await import('./localStorageService');
-    return await getBidsLocal(projectId);
+    console.error('Error fetching bids:', error);
+    throw error;
   }
 };
 
@@ -236,12 +157,6 @@ export const getBidsByStudent = async (studentId: string): Promise<Bid[]> => {
 };
 
 export const updateBid = async (id: string, updates: Partial<Bid>): Promise<Bid> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage bid service');
-    const { updateBid: updateBidLocal } = await import('./localStorageService');
-    return await updateBidLocal(id, updates);
-  }
-
   try {
     const { data, error } = await supabase
       .from('bids')
@@ -251,16 +166,13 @@ export const updateBid = async (id: string, updates: Partial<Bid>): Promise<Bid>
       .single();
 
     if (error) {
-      console.warn('Supabase bid update failed, using localStorage fallback:', error);
-      const { updateBid: updateBidLocal } = await import('./localStorageService');
-      return await updateBidLocal(id, updates);
+      throw new Error(`Failed to update bid: ${error.message}`);
     }
 
     return data as Bid;
   } catch (error) {
-    console.warn('Error updating bid, using localStorage fallback:', error);
-    const { updateBid: updateBidLocal } = await import('./localStorageService');
-    return await updateBidLocal(id, updates);
+    console.error('Error updating bid:', error);
+    throw error;
   }
 };
 
@@ -316,12 +228,6 @@ export const markMessageAsRead = async (messageId: string): Promise<void> => {
 
 // Notification Management
 export const createNotification = async (notificationData: Omit<Notification, "id" | "created_at">): Promise<Notification> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage notification service');
-    const { createNotification: createNotificationLocal } = await import('./localStorageService');
-    return await createNotificationLocal(notificationData);
-  }
-
   try {
     const { data, error } = await supabase
       .from('notifications')
@@ -330,16 +236,13 @@ export const createNotification = async (notificationData: Omit<Notification, "i
       .single();
 
     if (error) {
-      console.warn('Supabase notification creation failed, using localStorage fallback:', error);
-      const { createNotification: createNotificationLocal } = await import('./localStorageService');
-      return await createNotificationLocal(notificationData);
+      throw new Error(`Failed to create notification: ${error.message}`);
     }
 
     return data as Notification;
   } catch (error) {
-    console.warn('Error creating notification, using localStorage fallback:', error);
-    const { createNotification: createNotificationLocal } = await import('./localStorageService');
-    return await createNotificationLocal(notificationData);
+    console.error('Error creating notification:', error);
+    throw error;
   }
 };
 
@@ -464,21 +367,6 @@ export const createEscrow = async (escrowData: Omit<Escrow, "id" | "created_at">
 };
 
 export const getEscrowsByProjectId = async (projectId: string): Promise<Escrow[]> => {
-  console.log('supabaseService.getEscrowsByProjectId called with:', projectId);
-  console.log('isSupabaseConfigured():', isSupabaseConfigured());
-  
-  // For localStorage users, always use localStorage escrow service
-  // This is determined by checking if we have localStorage-style data
-  const { getCurrentUser } = await import('./localStorageService');
-  const currentUser = await getCurrentUser();
-  console.log('Current user for escrow lookup:', currentUser);
-  
-  if (!isSupabaseConfigured() || (currentUser && !currentUser.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i))) {
-    console.warn('Using localStorage escrow service (Supabase not configured or localStorage user detected)');
-    const { getEscrowsByProjectId: getEscrowsLocal } = await import('./walletService');
-    return await getEscrowsLocal(projectId);
-  }
-
   try {
     const { data, error } = await supabase
       .from('escrows')
@@ -487,16 +375,13 @@ export const getEscrowsByProjectId = async (projectId: string): Promise<Escrow[]
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase escrow fetch failed, using localStorage fallback:', error);
-      const { getEscrowsByProjectId: getEscrowsLocal } = await import('./walletService');
-      return await getEscrowsLocal(projectId);
+      throw new Error(`Failed to fetch escrows: ${error.message}`);
     }
 
     return data as Escrow[];
   } catch (error) {
-    console.warn('Error fetching escrows, using localStorage fallback:', error);
-    const { getEscrowsByProjectId: getEscrowsLocal } = await import('./walletService');
-    return await getEscrowsLocal(projectId);
+    console.error('Error fetching escrows:', error);
+    throw error;
   }
 };
 
@@ -598,11 +483,6 @@ export const subscribeToNotifications = (userId: string, callback: (payload: any
 
 // Initialize sample data (for development/testing)
 export const initializeSampleData = async (): Promise<void> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, skipping sample data initialization');
-    return;
-  }
-
   try {
     // Check if we already have projects
     const { data: existingProjects } = await supabase
@@ -662,16 +542,6 @@ export const initializeSampleData = async (): Promise<void> => {
 
 // Additional functions needed for compatibility
 export const getUserById = async (userId: string): Promise<any> => {
-  // Check if userId is a valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    console.warn('Non-UUID user ID detected, using localStorage user service');
-    // Import and use localStorage service
-    const { getUserById: getUserLocal } = await import('./localStorageService');
-    return await getUserLocal(userId);
-  }
-
-  // For UUID users, try Supabase first, then fallback to localStorage
   try {
     const { data, error } = await supabase
       .from('user_profiles')
@@ -680,26 +550,20 @@ export const getUserById = async (userId: string): Promise<any> => {
       .single();
 
     if (error) {
-      console.warn('Supabase user fetch failed, using localStorage fallback:', error);
-      const { getUserById: getUserLocal } = await import('./localStorageService');
-      return await getUserLocal(userId);
+      if ((error as any).code === 'PGRST116') {
+        return null; // User not found
+      }
+      throw new Error(`Failed to fetch user: ${error.message}`);
     }
 
     return data;
   } catch (error) {
-    console.warn('Error fetching user, using localStorage fallback:', error);
-    const { getUserById: getUserLocal } = await import('./localStorageService');
-    return await getUserLocal(userId);
+    console.error('Error fetching user:', error);
+    throw error;
   }
 };
 
 export const getConversationsByUser = async (userId: string): Promise<any[]> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage conversation service');
-    const { getConversationsByUser: getConversationsLocal } = await import('./localStorageService');
-    return await getConversationsLocal(userId);
-  }
-
   try {
     const { data, error } = await supabase
       .from('conversations')
@@ -708,26 +572,17 @@ export const getConversationsByUser = async (userId: string): Promise<any[]> => 
       .order('updated_at', { ascending: false });
 
     if (error) {
-      console.warn('Supabase conversations fetch failed, using localStorage fallback:', error);
-      const { getConversationsByUser: getConversationsLocal } = await import('./localStorageService');
-      return await getConversationsLocal(userId);
+      throw new Error(`Failed to fetch conversations: ${error.message}`);
     }
 
     return data || [];
   } catch (error) {
-    console.warn('Error fetching conversations, using localStorage fallback:', error);
-    const { getConversationsByUser: getConversationsLocal } = await import('./localStorageService');
-    return await getConversationsLocal(userId);
+    console.error('Error fetching conversations:', error);
+    throw error;
   }
 };
 
 export const getMessagesByConversation = async (conversationId: string): Promise<Message[]> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage message service');
-    const { getMessagesByConversation: getMessagesLocal } = await import('./localStorageService');
-    return await getMessagesLocal(conversationId);
-  }
-
   try {
     const { data, error } = await supabase
       .from('messages')
@@ -736,16 +591,13 @@ export const getMessagesByConversation = async (conversationId: string): Promise
       .order('timestamp', { ascending: true });
 
     if (error) {
-      console.warn('Supabase messages fetch failed, using localStorage fallback:', error);
-      const { getMessagesByConversation: getMessagesLocal } = await import('./localStorageService');
-      return await getMessagesLocal(conversationId);
+      throw new Error(`Failed to fetch messages: ${error.message}`);
     }
 
     return data as Message[];
   } catch (error) {
-    console.warn('Error fetching messages, using localStorage fallback:', error);
-    const { getMessagesByConversation: getMessagesLocal } = await import('./localStorageService');
-    return await getMessagesLocal(conversationId);
+    console.error('Error fetching messages:', error);
+    throw error;
   }
 };
 
@@ -777,13 +629,6 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
 };
 
 export const createMessage = async (messageData: Omit<Message, "id" | "timestamp"> | Omit<Message, "id" | "created_at">): Promise<Message> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage createMessage');
-    console.warn('Supabase not configured, using localStorage message service');
-    const { createMessage: createMessageLocal } = await import('./localStorageService');
-    return await createMessageLocal(messageData);
-  }
-
   try {
     const { data, error } = await supabase
       .from('messages')
@@ -792,9 +637,7 @@ export const createMessage = async (messageData: Omit<Message, "id" | "timestamp
       .single();
 
     if (error) {
-      console.warn('Supabase message creation failed, using localStorage fallback:', error);
-      const { createMessage: createMessageLocal } = await import('./localStorageService');
-      return await createMessageLocal(messageData);
+      throw new Error(`Failed to create message: ${error.message}`);
     }
 
     // Ensure a conversation row exists and update last message
@@ -819,9 +662,8 @@ export const createMessage = async (messageData: Omit<Message, "id" | "timestamp
 
     return data as Message;
   } catch (error) {
-    console.warn('Error creating message, using localStorage fallback:', error);
-    const { createMessage: createMessageLocal } = await import('./localStorageService');
-    return await createMessageLocal(messageData);
+    console.error('Error creating message:', error);
+    throw error;
   }
 };
 
@@ -845,29 +687,6 @@ export const ensureConversation = async (userA: string, userB: string, projectTi
 };
 
 export const getWalletByUserId = async (userId: string): Promise<any> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using mock wallet');
-    return {
-      id: generateId(),
-      user_id: userId,
-      balance: 0,
-      currency: "USD",
-      total_deposited: 0,
-      total_withdrawn: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  }
-
-  // Check if userId is a valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    console.warn('Non-UUID user ID detected, using localStorage wallet service');
-    // Import and use localStorage service
-    const { getWalletByUserId: getWalletLocal } = await import('./localStorageService');
-    return await getWalletLocal(userId);
-  }
-
   const { data, error } = await supabase
     .from('wallets')
     .select('*')
@@ -889,11 +708,6 @@ export const getTransactionsByUserId = async (userId: string): Promise<Transacti
 };
 
 export const saveResumeAnalysis = async (userId: string, analysis: any): Promise<void> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, resume analysis not saved');
-    return;
-  }
-
   try {
     const { error } = await supabase
       .from('user_profiles')
@@ -927,17 +741,6 @@ export const updateEscrowStatus = async (escrowId: string, status: string, updat
 };
 
 export const updateUser = async (userId: string, updates: any): Promise<any> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, user update not saved');
-    return { id: userId, ...updates };
-  }
-
-  // Check if userId is a valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    throw new Error(`Invalid UUID format for Supabase: ${userId}. Use localStorage service for non-UUID users.`);
-  }
-
   try {
     const { data, error } = await supabase
       .from('user_profiles')
@@ -959,20 +762,6 @@ export const updateUser = async (userId: string, updates: any): Promise<any> => 
 };
 
 export const createWallet = async (userId: string): Promise<any> => {
-  // Check if userId is a valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    console.warn('Non-UUID user ID detected, using localStorage wallet service');
-    const { createWallet: createWalletLocal } = await import('./walletService');
-    return await createWalletLocal(userId);
-  }
-
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage wallet service');
-    const { createWallet: createWalletLocal } = await import('./walletService');
-    return await createWalletLocal(userId);
-  }
-
   try {
     const { data, error } = await supabase
       .from('wallets')
@@ -987,34 +776,17 @@ export const createWallet = async (userId: string): Promise<any> => {
       .single();
 
     if (error) {
-      console.warn('Supabase wallet creation failed, using localStorage fallback:', error);
-      const { createWallet: createWalletLocal } = await import('./localStorageService');
-      return await createWalletLocal(userId);
+      throw new Error(`Failed to create wallet: ${error.message}`);
     }
 
     return data;
   } catch (error) {
-    console.warn('Error creating wallet, using localStorage fallback:', error);
-    const { createWallet: createWalletLocal } = await import('./walletService');
-    return await createWalletLocal(userId);
+    console.error('Error creating wallet:', error);
+    throw error;
   }
 };
 
 export const depositFunds = async (userId: string, amount: number, description: string = 'Wallet deposit'): Promise<any> => {
-  // Check if userId is a valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userId)) {
-    console.warn('Non-UUID user ID detected, using localStorage deposit service');
-    const { depositFunds: depositFundsLocal } = await import('./walletService');
-    return await depositFundsLocal(userId, amount, description);
-  }
-
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage deposit service');
-    const { depositFunds: depositFundsLocal } = await import('./walletService');
-    return await depositFundsLocal(userId, amount, description);
-  }
-
   if (amount <= 0) {
     throw new Error('Deposit amount must be greater than 0');
   }
@@ -1043,9 +815,7 @@ export const depositFunds = async (userId: string, amount: number, description: 
       .single();
 
     if (transactionError) {
-      console.warn('Supabase transaction creation failed, using localStorage fallback:', transactionError);
-      const { depositFunds: depositFundsLocal } = await import('./localStorageService');
-      return await depositFundsLocal(userId, amount, description);
+      throw new Error(`Failed to create transaction: ${transactionError.message}`);
     }
 
     // Update wallet balance
@@ -1060,34 +830,17 @@ export const depositFunds = async (userId: string, amount: number, description: 
       .single();
 
     if (walletError) {
-      console.warn('Supabase wallet update failed, using localStorage fallback:', walletError);
-      const { depositFunds: depositFundsLocal } = await import('./localStorageService');
-      return await depositFundsLocal(userId, amount, description);
+      throw new Error(`Failed to update wallet: ${walletError.message}`);
     }
 
     return { wallet: updatedWallet, transaction };
   } catch (error) {
-    console.warn('Error with deposit funds, using localStorage fallback:', error);
-    const { depositFunds: depositFundsLocal } = await import('./walletService');
-    return await depositFundsLocal(userId, amount, description);
+    console.error('Error depositing funds:', error);
+    throw error;
   }
 };
 
 export const assignEscrowToProject = async (companyId: string, projectId: string, amount: number, description: string = 'Project escrow assignment'): Promise<any> => {
-  // Check if companyId is a valid UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(companyId)) {
-    console.warn('Non-UUID company ID detected, using localStorage escrow service');
-    const { assignEscrowToProject: assignEscrowLocal } = await import('./walletService');
-    return await assignEscrowLocal(companyId, projectId, amount, description);
-  }
-
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage escrow service');
-    const { assignEscrowToProject: assignEscrowLocal } = await import('./walletService');
-    return await assignEscrowLocal(companyId, projectId, amount, description);
-  }
-
   if (amount <= 0) {
     throw new Error('Escrow amount must be greater than 0');
   }
@@ -1108,13 +861,23 @@ export const assignEscrowToProject = async (companyId: string, projectId: string
     const studentId = project.assigned_to || 'unassigned';
 
     // Create escrow (Supabase schema uses 'pending' before release)
-    const escrow = await createEscrow({
-      project_id: projectId,
-      company_id: companyId,
-      student_id: studentId,
-      amount: amount,
-      status: 'pending'
-    });
+    const { data: escrow, error: escrowError } = await supabase
+      .from('escrows')
+      .insert([{
+        project_id: projectId,
+        company_id: companyId,
+        student_id: studentId === 'unassigned' ? null : studentId,
+        amount: amount,
+        status: 'assigned',
+        description: description,
+        assigned_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (escrowError) {
+      throw new Error(`Failed to create escrow: ${escrowError.message}`);
+    }
 
     // Create transaction
     const { data: transaction, error: transactionError } = await supabase
@@ -1135,9 +898,7 @@ export const assignEscrowToProject = async (companyId: string, projectId: string
       .single();
 
     if (transactionError) {
-      console.warn('Supabase transaction creation failed, using localStorage fallback:', transactionError);
-      const { assignEscrowToProject: assignEscrowLocal } = await import('./localStorageService');
-      return await assignEscrowLocal(companyId, projectId, amount, description);
+      throw new Error(`Failed to create transaction: ${transactionError.message}`);
     }
 
     // Update wallet balance
@@ -1151,16 +912,13 @@ export const assignEscrowToProject = async (companyId: string, projectId: string
       .single();
 
     if (walletError) {
-      console.warn('Supabase wallet update failed, using localStorage fallback:', walletError);
-      const { assignEscrowToProject: assignEscrowLocal } = await import('./localStorageService');
-      return await assignEscrowLocal(companyId, projectId, amount, description);
+      throw new Error(`Failed to update wallet: ${walletError.message}`);
     }
 
     return { escrow, transaction, wallet: updatedWallet };
   } catch (error) {
-    console.warn('Error with escrow assignment, using localStorage fallback:', error);
-    const { assignEscrowToProject: assignEscrowLocal } = await import('./walletService');
-    return await assignEscrowLocal(companyId, projectId, amount, description);
+    console.error('Error assigning escrow:', error);
+    throw error;
   }
 };
 

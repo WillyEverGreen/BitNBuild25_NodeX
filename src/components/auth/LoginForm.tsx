@@ -22,7 +22,17 @@ const LoginForm: React.FC = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
-      const msg = (err as any)?.message || 'Failed to sign in. Please try again.';
+      let msg = (err as any)?.message || 'Failed to sign in. Please try again.';
+      
+      // Handle common Supabase auth errors
+      if (msg.includes('Invalid login credentials')) {
+        msg = 'Invalid email or password. Please check your credentials and try again.';
+      } else if (msg.includes('Email not confirmed')) {
+        msg = 'Please verify your email address before signing in. Check your inbox for the verification link.';
+      } else if (msg.includes('Too many requests')) {
+        msg = 'Too many login attempts. Please wait a few minutes before trying again.';
+      }
+      
       setError(msg);
     }
   };

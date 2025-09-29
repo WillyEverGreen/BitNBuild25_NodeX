@@ -6,9 +6,6 @@ import React, {
   ReactNode,
 } from "react";
 import { supabaseAuthService } from "../services/supabaseAuthService";
-import { initializeSampleData as initializeSupabaseData } from "../services/supabaseService";
-import { initializeSampleData as initializeLocalData } from "../services/localStorageService";
-import { getCurrentUser as getCurrentUserLocal, signInUser as signInLocal, createUser as createUserLocal } from "../services/localStorageService";
 import { Student, Company } from "../types";
 
 interface AuthContextType {
@@ -37,36 +34,18 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<(Student | Company) | null>(null);
   const [loading, setLoading] = useState(true);
-  const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        // Initialize sample data only for the active backend
-        if (isSupabaseConfigured) {
-          await initializeSupabaseData();
-        } else {
-          initializeLocalData();
-        }
-
-        // Check for existing session strictly from Supabase if configured
-        let currentUser: (Student | Company) | null = null;
-        if (isSupabaseConfigured) {
-          currentUser = await supabaseAuthService.getCurrentUser();
-        } else {
-          currentUser = await getCurrentUserLocal();
-        }
+        // Check for existing session
+        const currentUser = await supabaseAuthService.getCurrentUser();
 
         setUser(currentUser);
 
         // Listen for auth state changes
         const { data: { subscription } } = supabaseAuthService.onAuthStateChange((user) => {
-          // When Supabase is configured, only trust Supabase sessions
-          if (isSupabaseConfigured) {
-            setUser(user);
-          } else {
-            setUser(user);
-          }
+          setUser(user);
         });
 
         // Cleanup subscription on unmount
@@ -86,20 +65,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // If Supabase is configured, do NOT fallback to localStorage (enforce real session)
-      if (isSupabaseConfigured) {
-        const supaUser = await supabaseAuthService.signIn(email, password);
-        // Extra guard: enforce verified email
-        if (!supaUser?.is_verified) {
-          // signIn already throws a clear error for unconfirmed email, but keep guard
-          throw new Error('Email not confirmed. Please verify your email to continue.');
-        }
-        setUser(supaUser);
-      } else {
-        // Local-only mode
-        const localUser = await signInLocal(email, password);
-        setUser(localUser);
-      }
+      const supaUser = await supabaseAuthService.signIn(email, password);
+      setUser(supaUser);
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -111,19 +78,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: any, password: string) => {
     setLoading(true);
     try {
-      if (isSupabaseConfigured) {
-        const supaUser = await supabaseAuthService.signUp(userData.email, password, userData);
-        // If email confirmations are enabled, signUp will likely not return a session. Force user to verify.
-        if (!supaUser) {
-          // Keep UI consistent: no local placeholder user
-          setUser(null);
-          return;
-        }
-        setUser(supaUser);
-      } else {
-        const localUser = await createUserLocal(userData, password);
-        setUser(localUser);
+      const supaUser = await supabaseAuthService.signUp(userData.email, password, userData);
+      if (!supaUser) {
+        setUser(null);
+        return;
       }
+      setUser(supaUser);
     } catch (error) {
       console.error("Registration error:", error);
       throw error;
@@ -144,12 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const refreshUser = async () => {
     try {
-      let currentUser: (Student | Company) | null = null;
-      if (isSupabaseConfigured) {
-        currentUser = await supabaseAuthService.getCurrentUser();
-      } else {
-        currentUser = await getCurrentUserLocal();
-      }
+      const currentUser = await supabaseAuthService.getCurrentUser();
       setUser(currentUser);
     } catch (error) {
       console.error("Error refreshing user:", error);

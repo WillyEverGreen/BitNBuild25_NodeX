@@ -1,11 +1,6 @@
 import { supabase } from '../config/supabase';
 import { Student, Company } from '../types';
 
-// Check if Supabase is properly configured
-const isSupabaseConfigured = () => {
-  return import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
-};
-
 // Auth service using Supabase Auth
 export const supabaseAuthService = {
   // Internal helper to ensure a profile exists for the current auth user
@@ -72,10 +67,6 @@ export const supabaseAuthService = {
   },
   // Sign up a new user
   async signUp(email: string, password: string, userData: any): Promise<Student | Company> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured. Please check your environment variables.');
-    }
-
     try {
       // Create user in Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -110,10 +101,6 @@ export const supabaseAuthService = {
 
   // Sign in an existing user
   async signIn(email: string, password: string): Promise<Student | Company> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured. Please check your environment variables.');
-    }
-
     try {
       // Sign in with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -147,10 +134,6 @@ export const supabaseAuthService = {
 
   // Sign out the current user
   async signOut(): Promise<void> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured. Please check your environment variables.');
-    }
-
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -164,10 +147,6 @@ export const supabaseAuthService = {
 
   // Get the current user
   async getCurrentUser(): Promise<Student | Company | null> {
-    if (!isSupabaseConfigured()) {
-      return null;
-    }
-
     try {
       // Get current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -191,10 +170,6 @@ export const supabaseAuthService = {
 
   // Update user profile
   async updateProfile(userId: string, updates: Partial<Student | Company>): Promise<Student | Company> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured. Please check your environment variables.');
-    }
-
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -216,10 +191,6 @@ export const supabaseAuthService = {
 
   // Listen to auth state changes
   onAuthStateChange(callback: (user: Student | Company | null) => void) {
-    if (!isSupabaseConfigured()) {
-      return { data: { subscription: null } };
-    }
-
     return supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         try {
@@ -237,10 +208,6 @@ export const supabaseAuthService = {
 
   // Reset password
   async resetPassword(email: string): Promise<void> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured. Please check your environment variables.');
-    }
-
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -257,10 +224,6 @@ export const supabaseAuthService = {
 
   // Resend email verification link
   async resendVerificationEmail(email: string): Promise<void> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured. Please check your environment variables.');
-    }
-
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -276,10 +239,6 @@ export const supabaseAuthService = {
 
   // Update password
   async updatePassword(newPassword: string): Promise<void> {
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured. Please check your environment variables.');
-    }
-
     try {
       const { error } = await supabase.auth.updateUser({
         password: newPassword,

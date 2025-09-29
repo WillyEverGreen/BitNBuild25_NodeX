@@ -176,6 +176,14 @@ const ProjectBids: React.FC = () => {
         otherBids.map(bid => updateBid(bid.id, { status: 'rejected' }))
       );
 
+      // Update project to assign the student
+      if (project) {
+        await updateProject(project.id, { 
+          assigned_to: studentId,
+          status: 'in-progress'
+        });
+      }
+
       // Ensure a conversation exists and create initial message to establish chat
       const conversationId = await ensureConversation(user!.id, studentId, project?.title);
       await createMessage({
