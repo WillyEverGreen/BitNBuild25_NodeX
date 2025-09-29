@@ -69,8 +69,15 @@ export const supabaseAuthService = {
   async signUp(email: string, password: string, userData: any): Promise<Student | Company> {
     try {
       // Create user in Supabase Auth
+      const normalizedEmail = (email || '').trim().toLowerCase();
+      const userType = (userData?.type || '').toString();
+
+      // Enforce .edu emails for student signups (client-side validation)
+      if (userType === 'student' && !/\.edu$/i.test(normalizedEmail)) {
+        throw new Error('Students must use a .edu email address.');
+      }
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/reset-password`,
@@ -82,6 +89,11 @@ export const supabaseAuthService = {
       });
 
       if (authError) {
+        // Map common Supabase errors to clearer messages
+        const msg = authError.message?.toLowerCase() || '';
+        if (msg.includes('email') && msg.includes('already registered')) {
+          throw new Error('This email is already registered. Try logging in or resetting your password.');
+        }
         throw new Error(authError.message);
       }
 

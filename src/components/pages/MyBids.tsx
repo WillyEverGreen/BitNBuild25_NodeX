@@ -13,6 +13,7 @@ const MyBids: React.FC = () => {
   const { user } = useAuth();
   const [bids, setBids] = useState<BidWithProject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
 
   useEffect(() => {
     if (user?.type === 'student') {

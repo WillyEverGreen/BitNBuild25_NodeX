@@ -105,8 +105,23 @@ const EnhancedChatInterface: React.FC = () => {
       let userConversations = await getConversationsByUser(user!.id);
       console.log('Loaded conversations for user', user!.id, ':', userConversations);
 
+      // Transform DB conversations to UI format
+      const transformedConversations: Conversation[] = userConversations.map((conv: any) => {
+        const isUser1 = conv.user1_id === user!.id;
+        return {
+          id: conv.id,
+          participant_id: isUser1 ? conv.user2_id : conv.user1_id,
+          participant_name: isUser1 ? conv.user2_name : conv.user1_name,
+          participant_type: isUser1 ? 'student' : 'company', // This is a guess, ideally store in DB
+          project_title: conv.project_title,
+          last_message: conv.last_message,
+          last_message_time: conv.updated_at,
+          unread_count: 0, // TODO: Calculate from messages
+        };
+      });
+
       // Fallback: derive conversations from bids if none found
-      if (!userConversations || userConversations.length === 0) {
+      if (!transformedConversations || transformedConversations.length === 0) {
         const derived: Conversation[] = [];
         if (user?.type === 'company') {
           // Get company's projects and aggregate bidders
@@ -155,6 +170,8 @@ const EnhancedChatInterface: React.FC = () => {
           }
         }
         userConversations = derived;
+      } else {
+        userConversations = transformedConversations;
       }
 
       setConversations(userConversations);
@@ -241,14 +258,25 @@ const EnhancedChatInterface: React.FC = () => {
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !selectedConversation || !user) return;
+    if (!file || !selectedConversation || !user) {
+      console.log('File upload blocked:', { file: !!file, selectedConversation, user: !!user });
+      return;
+    }
+    
+    console.log('Starting file upload:', { fileName: file.name, fileSize: file.size, fileType: file.type });
     
     try {
       const conversation = conversations.find(conv => conv.id === selectedConversation);
-      if (!conversation) return;
+      if (!conversation) {
+        console.error('Conversation not found:', selectedConversation);
+        alert('Conversation not found. Please refresh and try again.');
+        return;
+      }
 
+      console.log('Uploading to storage...');
       // Upload to Supabase Storage and get public URL
       const { url } = await uploadChatFile(selectedConversation, file);
+      console.log('Upload successful, URL:', url);
 
       const message: Omit<EnhancedMessage, 'id' | 'timestamp'> = {
         sender_id: user.id,
@@ -262,17 +290,21 @@ const EnhancedChatInterface: React.FC = () => {
         file_size: file.size
       };
 
+      console.log('Creating message with file attachment...');
       await createMessage(message);
+      console.log('Message created, reloading messages...');
       await loadMessages(selectedConversation);
       
       // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      alert('File uploaded successfully!');
     } catch (error) {
       console.error('Error uploading file:', error);
       const msg = (error as any)?.message || 'Failed to upload file. Please try again.';
-      alert(msg);
+      alert(`Upload failed: ${msg}`);
     }
   };
 
@@ -336,7 +368,7 @@ const EnhancedChatInterface: React.FC = () => {
   };
 
   const filteredConversations = conversations.filter(conv =>
-    conv.participant_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (conv.participant_name && conv.participant_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (conv.project_title && conv.project_title.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -408,13 +440,13 @@ const EnhancedChatInterface: React.FC = () => {
                   <div className="flex items-start space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                       <span className="text-white font-medium text-sm">
-                        {conversation.participant_name.charAt(0).toUpperCase()}
+                        {(conversation.participant_name || 'U').charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-gray-900 truncate">
-                          {conversation.participant_name}
+                          {conversation.participant_name || 'Unknown User'}
                         </h3>
                         {conversation.last_message_time && (
                           <span className="text-xs text-gray-500">
@@ -460,7 +492,7 @@ const EnhancedChatInterface: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {selectedConv.participant_name}
+                      {selectedConv.participant_name || 'Unknown User'}
                     </h2>
                     {selectedConv.project_title && (
                       <p className="text-sm text-gray-600">📋 {selectedConv.project_title}</p>

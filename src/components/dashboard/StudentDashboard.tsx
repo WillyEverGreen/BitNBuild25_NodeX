@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Student, Project } from '../../types';
-import { getProjects, getBidsByStudent, getTransactionsByUserId } from '../../services/supabaseService';
+import { getProjects, getBidsByStudent, getTransactionsByUserId, getProjectById } from '../../services/supabaseService';
 import { Star, DollarSign, Clock, TrendingUp, Briefcase, List, Hand, HelpCircle, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OpportunityList from '../opportunities/OpportunityList';
@@ -64,18 +64,35 @@ const StudentDashboard: React.FC = () => {
       
       // Get transaction data for earnings
       const transactions = await getTransactionsByUserId(student.id);
-      
       // Calculate earnings from completed projects (escrow releases)
       const completedEarnings = transactions
         .filter(t => t.type === 'escrow_release' && t.status === 'completed')
         .reduce((sum, t) => sum + t.amount, 0);
       
-      // Calculate pending earnings (accepted bids that haven't been paid yet)
+      // Calculate pending earnings and active projects (accepted bids that haven't been completed)
       const acceptedBids = bids.filter(bid => bid.status === 'accepted');
-      const pendingEarnings = acceptedBids.reduce((sum, bid) => sum + bid.amount, 0);
       
-      // Count active projects (projects where student has accepted bids)
-      const activeProjects = acceptedBids.length;
+      // Check which accepted bids are for active (not completed) projects
+      const activeProjectsData = await Promise.all(
+        acceptedBids.map(async (bid) => {
+          try {
+            const project = await getProjectById(bid.project_id);
+            return { bid, project };
+          } catch {
+            return { bid, project: null };
+          }
+        })
+      );
+      
+      // Count only in-progress projects (not completed)
+      const activeProjects = activeProjectsData.filter(
+        ({ project }) => project && project.status === 'in-progress'
+      ).length;
+      
+      // Pending earnings are from active projects only
+      const pendingEarnings = activeProjectsData
+        .filter(({ project }) => project && project.status === 'in-progress')
+        .reduce((sum, { bid }) => sum + bid.amount, 0);
       
       setStats({
         activeProjects,

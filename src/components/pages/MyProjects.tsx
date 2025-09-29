@@ -19,6 +19,7 @@ const MyProjects: React.FC = () => {
   const [projectEscrows, setProjectEscrows] = useState<Record<string, Escrow[]>>({});
   const [loading, setLoading] = useState(true);
   const [releasingFunds, setReleasingFunds] = useState<Record<string, boolean>>({});
+  const [filter, setFilter] = useState<'all' | 'open' | 'in-progress' | 'completed'>('all');
 
   useEffect(() => {
     if (user?.type === 'company') {
@@ -30,7 +31,11 @@ const MyProjects: React.FC = () => {
     try {
       setLoading(true);
       const companyProjects = await getProjectsByCompany(user!.id);
-      setProjects(companyProjects);
+      // Sort by created_at descending (newest first)
+      const sortedProjects = companyProjects.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setProjects(sortedProjects);
 
       // Load escrows for each project
       const escrowsData: Record<string, Escrow[]> = {};
@@ -192,6 +197,28 @@ const MyProjects: React.FC = () => {
         </div>
       </div>
 
+      {/* Filter Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          {(['all', 'open', 'in-progress', 'completed'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilter(tab)}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                filter === tab
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab === 'all' ? 'All Projects' : tab.charAt(0).toUpperCase() + tab.slice(1).replace('-', ' ')}
+              <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-gray-100">
+                {projects.filter(p => tab === 'all' || p.status === tab).length}
+              </span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -211,7 +238,7 @@ const MyProjects: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {projects.map((project) => {
+          {projects.filter(p => filter === 'all' || p.status === filter).map((project) => {
             const escrows = projectEscrows[project.id] || [];
             const activeEscrows = escrows.filter(e => e.status === 'assigned' || e.status === 'locked');
             const lockedEscrows = escrows.filter(e => e.status === 'locked' && e.student_id);

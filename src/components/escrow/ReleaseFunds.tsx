@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { releaseFunds, getEscrowsByProjectId, createMessage, createNotification } from '../../services/supabaseService';
+import { releaseFunds, getEscrowsByProjectId, createMessage, createNotification, updateProject, updateUser, getUserById } from '../../services/supabaseService';
 import { DollarSign, CheckCircle, AlertCircle, Send } from 'lucide-react';
 
 interface ReleaseFundsProps {
@@ -69,22 +69,74 @@ const ReleaseFunds: React.FC<ReleaseFundsProps> = ({
 
     try {
       setReleasing(true);
+      console.log('Starting fund release:', {
+        escrowId: selectedEscrow.id,
+        companyId: user.id,
+        studentId,
+        amount: releaseAmount
+      });
 
       // Release funds from escrow to student wallet
-      const result = await releaseFunds(
+      await releaseFunds(
         selectedEscrow.id,
         user.id,
         studentId,
         releaseAmount,
         `Funds released for project: ${projectTitle}`
       );
+      
+      console.log('Funds released successfully');
 
-      // Create message to student
-      const conversationId = [user.id, studentId].sort().join('_');
-      await createMessage({
-        sender_id: user.id,
-        receiver_id: studentId,
-        content: `🎉 **FUNDS RELEASED** 🎉
+      // Update project status to completed
+      try {
+        await updateProject(projectId, { status: 'completed' });
+        console.log('Project status updated to completed');
+      } catch (err) {
+        console.error('Failed to update project status:', err);
+        // Continue anyway - funds are released
+      }
+
+      // Update student's stats (completed_projects, total_earnings, and rating)
+      try {
+        const student = await getUserById(studentId);
+        if (student) {
+          const newCompletedProjects = (student.completed_projects || 0) + 1;
+          const newTotalEarnings = (student.total_earnings || 0) + releaseAmount;
+          
+          // Increase rating slightly on successful completion (max 5.0)
+          const ratingBoost = 0.05; // Small boost per completed project
+          const currentRating = student.rating || 5.0;
+          const newRating = Math.min(5.0, currentRating + ratingBoost);
+          
+          await updateUser(studentId, {
+            completed_projects: newCompletedProjects,
+            total_earnings: newTotalEarnings,
+            rating: newRating
+          });
+          
+          console.log(`✅ Student stats updated: projects=${newCompletedProjects}, earnings=$${newTotalEarnings}, rating=${newRating.toFixed(2)}`);
+        }
+      } catch (err) {
+        console.error('Failed to update student stats:', err);
+        // Continue anyway - funds are released
+      }
+
+      // Ensure conversation exists and create message to student
+      try {
+        const conversationId = [user.id, studentId].sort().join('_');
+        
+        // Ensure conversation exists with proper names
+        try {
+          const { ensureConversation } = await import('../../services/supabaseService');
+          await ensureConversation(user.id, studentId, projectTitle, user.name, studentName);
+        } catch (err) {
+          console.warn('Failed to ensure conversation:', err);
+        }
+        
+        await createMessage({
+          sender_id: user.id,
+          receiver_id: studentId,
+          content: `🎉 **FUNDS RELEASED** 🎉
 
 Great news ${studentName}!
 
@@ -102,19 +154,30 @@ Thank you for the excellent work!
 
 Best regards,
 ${user.name}`,
-        read: false,
-        conversation_id: conversationId
-      });
+          read: false,
+          conversation_id: conversationId
+        });
+        console.log('✅ Message sent to student');
+      } catch (err) {
+        console.error('Failed to send message:', err);
+        // Continue anyway - funds are released
+      }
 
       // Create notification for student
-      await createNotification({
-        user_id: studentId,
-        type: 'payment',
-        title: 'Funds Released! 💰',
-        message: `$${releaseAmount.toLocaleString()} has been released from escrow for "${projectTitle}". Check your wallet!`,
-        read: false,
-        action_url: '/wallet'
-      });
+      try {
+        await createNotification({
+          user_id: studentId,
+          type: 'payment',
+          title: 'Funds Released! 💰',
+          message: `$${releaseAmount.toLocaleString()} has been released from escrow for "${projectTitle}". Check your wallet!`,
+          read: false,
+          action_url: '/wallet'
+        });
+        console.log('✅ Notification sent to student');
+      } catch (err) {
+        console.error('Failed to send notification:', err);
+        // Continue anyway - funds are released
+      }
 
       // Success feedback
       alert(`🎉 Funds Released Successfully!
@@ -139,10 +202,12 @@ The transaction is complete!`);
       // Reload escrows to reflect changes
       await loadEscrows();
       setMessage('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error releasing funds:', error);
-      alert('Failed to release funds. Please try again.');
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      alert(`Failed to release funds: ${errorMessage}\n\nPlease check:\n• Escrow has sufficient balance\n• Student wallet exists\n• Database connection is working\n\nTry again or contact support.`);
     } finally {
+      setReleasing(false);
     }
   };
 

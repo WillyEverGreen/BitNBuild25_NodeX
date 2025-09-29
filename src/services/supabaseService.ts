@@ -602,12 +602,6 @@ export const getMessagesByConversation = async (conversationId: string): Promise
 };
 
 export const markMessagesAsRead = async (conversationId: string, userId: string): Promise<void> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage markMessagesAsRead');
-    const { markMessagesAsRead: markMessagesAsReadLocal } = await import('./localStorageService');
-    return await markMessagesAsReadLocal(conversationId, userId);
-  }
-
   try {
     const { error } = await supabase
       .from('messages')
@@ -617,14 +611,10 @@ export const markMessagesAsRead = async (conversationId: string, userId: string)
       .eq('read', false);
 
     if (error) {
-      console.warn('Supabase markMessagesAsRead failed, using localStorage fallback:', error);
-      const { markMessagesAsRead: markMessagesAsReadLocal } = await import('./localStorageService');
-      return await markMessagesAsReadLocal(conversationId, userId);
+      console.error('Failed to mark messages as read:', error);
     }
   } catch (error) {
-    console.warn('Error marking messages as read, using localStorage fallback:', error);
-    const { markMessagesAsRead: markMessagesAsReadLocal } = await import('./localStorageService');
-    return await markMessagesAsReadLocal(conversationId, userId);
+    console.error('Error marking messages as read:', error);
   }
 };
 
@@ -668,15 +658,34 @@ export const createMessage = async (messageData: Omit<Message, "id" | "timestamp
 };
 
 // Ensure conversation exists utility (can be used by other features)
-export const ensureConversation = async (userA: string, userB: string, projectTitle?: string): Promise<string> => {
+export const ensureConversation = async (userA: string, userB: string, projectTitle?: string, userAName?: string, userBName?: string): Promise<string> => {
   const convId = [userA, userB].sort().join('_');
   try {
+    // Fetch user names if not provided
+    let nameA = userAName;
+    let nameB = userBName;
+
+    if (!nameA || !nameB) {
+      try {
+        const [profileA, profileB] = await Promise.all([
+          getUserById(userA),
+          getUserById(userB)
+        ]);
+        nameA = nameA || profileA?.name || 'User';
+        nameB = nameB || profileB?.name || 'User';
+      } catch (err) {
+        console.warn('Failed to fetch user names:', err);
+      }
+    }
+    
     await supabase
       .from('conversations')
       .upsert({
         id: convId,
         user1_id: [userA, userB].sort()[0],
         user2_id: [userA, userB].sort()[1],
+        user1_name: [userA, userB].sort()[0] === userA ? nameA : nameB,
+        user2_name: [userA, userB].sort()[0] === userA ? nameB : nameA,
         project_title: projectTitle,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
@@ -884,7 +893,7 @@ export const assignEscrowToProject = async (companyId: string, projectId: string
       .from('transactions')
       .insert([{
         from_user_id: companyId,
-        to_user_id: studentId,
+        to_user_id: studentId === 'unassigned' ? null : studentId,
         amount: amount,
         type: 'escrow_assignment',
         description: description,
@@ -927,12 +936,6 @@ export const releaseFunds = async (escrowId: string, companyId: string, studentI
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(companyId)) {
     console.warn('Non-UUID company ID detected, using localStorage release funds service');
-    const { releaseFunds: releaseFundsLocal } = await import('./walletService');
-    return await releaseFundsLocal(escrowId, companyId, studentId, amount, description);
-  }
-
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using localStorage release funds service');
     const { releaseFunds: releaseFundsLocal } = await import('./walletService');
     return await releaseFundsLocal(escrowId, companyId, studentId, amount, description);
   }
@@ -1054,36 +1057,26 @@ export const releaseFunds = async (escrowId: string, companyId: string, studentI
 };
 
 export const getEscrowsByCompanyId = async (companyId: string): Promise<Escrow[]> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using mock escrows');
+  try {
+    const { data, error } = await supabase
+      .from('escrows')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch company escrows: ${error.message}`);
+    }
+
+    return data as Escrow[];
+  } catch (error) {
+    console.error('Error fetching company escrows:', error);
     return [];
   }
-
-  const { data, error } = await supabase
-    .from('escrows')
-    .select('*')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error(`Failed to fetch company escrows: ${error.message}`);
-  }
-
-  return data as Escrow[];
 };
 
 // Bank Account Management
 export const createBankAccount = async (bankAccountData: Omit<BankAccount, "id" | "created_at">): Promise<BankAccount> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using mock bank account');
-    const mockBankAccount: BankAccount = {
-      ...bankAccountData,
-      id: generateId(),
-      created_at: new Date().toISOString(),
-    };
-    return mockBankAccount;
-  }
-
   const { data, error } = await supabase
     .from('bank_accounts')
     .insert([bankAccountData])
@@ -1098,11 +1091,6 @@ export const createBankAccount = async (bankAccountData: Omit<BankAccount, "id" 
 };
 
 export const getBankAccountsByUserId = async (userId: string): Promise<BankAccount[]> => {
-  if (!isSupabaseConfigured()) {
-    console.warn('Supabase not configured, using mock bank accounts');
-    return [];
-  }
-
   const { data, error } = await supabase
     .from('bank_accounts')
     .select('*')

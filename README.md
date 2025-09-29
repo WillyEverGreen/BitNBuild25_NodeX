@@ -1,6 +1,13 @@
-# GigCampus - Student Freelance Marketplace
+# 🎓 BitNBuild - Student Freelance Marketplace
 
-A modern platform connecting talented students with companies seeking fresh perspectives and innovative solutions.
+> **A comprehensive platform connecting university students with companies for freelance projects**
+
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green.svg)](https://supabase.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+A modern, full-featured freelance marketplace designed specifically for university students to connect with companies, showcase their skills, and earn money through project-based work.
 
 ## 🚀 Features
 

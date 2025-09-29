@@ -7,6 +7,7 @@ import SetupPage from "./components/SetupPage";
 import LocalStorageTest from "./components/SupabaseTest";
 import SupabaseConnectionTest from "./components/SupabaseConnectionTest";
 import SupabaseAuthTest from "./components/SupabaseAuthTest";
+import StorageTest from "./components/StorageTest";
 import StudentDashboard from "./components/dashboard/StudentDashboard";
 import CompanyDashboard from "./components/dashboard/CompanyDashboard";
 import DashboardRedirect from "./components/dashboard/DashboardRedirect";
@@ -40,6 +41,7 @@ function App() {
             <Route path="/test" element={<LocalStorageTest />} />
             <Route path="/supabase-test" element={<SupabaseConnectionTest />} />
             <Route path="/auth-test" element={<SupabaseAuthTest />} />
+            <Route path="/storage-test" element={<StorageTest />} />
             <Route path="/login" element={<LoginForm />} />
             <Route path="/register" element={<RegisterForm />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />

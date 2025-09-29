@@ -126,16 +126,28 @@ const CompanyWallet: React.FC = () => {
       const project = projects.find(p => p.id === selectedProject);
       const description = escrowDescription || `Escrow for ${project?.title}`;
       
+      console.log('Assigning escrow:', {
+        companyId: user.id,
+        projectId: selectedProject,
+        amount,
+        description,
+        walletBalance: wallet.balance
+      });
+      
       await assignEscrowToProject(user.id, selectedProject, amount, description);
+      
+      console.log('Escrow assigned successfully!');
       await loadWalletData(); // Refresh all data
       setShowEscrowModal(false);
       setSelectedProject('');
       setEscrowAmount('');
       setEscrowDescription('');
       alert(`Successfully assigned $${amount.toFixed(2)} to escrow for ${project?.title}!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error assigning escrow:', error);
-      alert('Failed to assign escrow. Please try again.');
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      console.error('Detailed error:', errorMessage);
+      alert(`Failed to assign escrow: ${errorMessage}\n\nPlease check:\n• Wallet has sufficient balance\n• Project exists\n• Database policies are correct\n\nTry running QUICK_FIX.sql in Supabase Dashboard.`);
     }
   };
 

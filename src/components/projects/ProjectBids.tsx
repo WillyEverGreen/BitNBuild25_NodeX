@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage, getEscrowsByProjectId, updateEscrowStatus, ensureConversation } from '../../services/supabaseService';
+import { getBidsByProject, getProjectById, getUserById, updateBid, createNotification, createMessage, getEscrowsByProjectId, updateEscrowStatus, ensureConversation, updateProject } from '../../services/supabaseService';
 import { Bid, Project, Student } from '../../types';
 import BackButton from '../common/BackButton';
 import ReleaseFunds from '../escrow/ReleaseFunds';
@@ -38,6 +38,7 @@ const ProjectBids: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showReleaseFunds, setShowReleaseFunds] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
+  const [accepting, setAccepting] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -167,6 +168,8 @@ const ProjectBids: React.FC = () => {
 
   const handleAcceptBid = async (bidId: string, studentId: string, studentName: string) => {
     try {
+      if (accepting) return; // prevent duplicate actions
+      setAccepting(bidId);
       // Update bid status to accepted
       await updateBid(bidId, { status: 'accepted' });
       
@@ -185,7 +188,7 @@ const ProjectBids: React.FC = () => {
       }
 
       // Ensure a conversation exists and create initial message to establish chat
-      const conversationId = await ensureConversation(user!.id, studentId, project?.title);
+      const conversationId = await ensureConversation(user!.id, studentId, project?.title, user!.name, studentName);
       await createMessage({
         sender_id: user!.id,
         receiver_id: studentId,
@@ -260,6 +263,9 @@ ${user!.name}`,
       console.error('Error accepting bid:', error);
       alert('Failed to accept bid. Please try again.');
     }
+    finally {
+      setAccepting(null);
+    }
   };
 
   const handleRejectBid = async (bidId: string, studentId: string) => {
@@ -281,6 +287,62 @@ ${user!.name}`,
     } catch (error) {
       console.error('Error rejecting bid:', error);
       alert('Failed to reject bid. Please try again.');
+    }
+  };
+
+  const handleChangeBidder = async () => {
+    if (!project || !user) return;
+    
+    const confirmed = confirm(
+      `Are you sure you want to change the selected bidder for "${project.title}"?\n\n` +
+      `This will:\n` +
+      `• Reject the currently accepted bid\n` +
+      `• Reopen all pending bids\n` +
+      `• Change project status back to "open"\n` +
+      `• Allow you to select a different bidder\n\n` +
+      `Note: Escrow funds will remain assigned to the project.`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      // Find the currently accepted bid
+      const acceptedBid = bids.find(b => b.status === 'accepted');
+      if (!acceptedBid) {
+        alert('No accepted bid found.');
+        return;
+      }
+
+      // Reject the currently accepted bid
+      await updateBid(acceptedBid.id, { status: 'rejected' });
+
+      // Reopen all rejected bids back to pending
+      const rejectedBids = bids.filter(b => b.status === 'rejected');
+      await Promise.all(
+        rejectedBids.map(bid => updateBid(bid.id, { status: 'pending' }))
+      );
+
+      // Update project status back to open and remove assigned student
+      await updateProject(project.id, {
+        status: 'open',
+        assigned_to: undefined
+      });
+
+      // Notify the previously accepted student
+      await createNotification({
+        user_id: acceptedBid.student_id,
+        type: 'project',
+        title: 'Project Assignment Changed',
+        message: `The company has decided to reconsider bidders for "${project.title}". Your bid status has been updated.`,
+        read: false,
+        action_url: `/projects/${project.id}`
+      });
+
+      await loadProjectAndBids();
+      alert('Project reopened! You can now select a different bidder.');
+    } catch (error) {
+      console.error('Error changing bidder:', error);
+      alert('Failed to change bidder. Please try again.');
     }
   };
 
@@ -371,6 +433,46 @@ ${user!.name}`,
           <p className="text-gray-600 mt-2">
             {isCompany ? 'Bids Leaderboard - Manage Applications' : 'Bids Leaderboard - See Competition'}
           </p>
+          {isCompany && processedBids.some(b => b.status === 'pending') && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-800">
+                  Quick action: Accept the best pending bid (highest skill match) in one click.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const best = [...processedBids]
+                    .filter(b => b.status === 'pending')
+                    .sort((a, b) => b.skillMatch - a.skillMatch || a.amount - b.amount)[0];
+                  if (!best) return;
+                  handleAcceptBid(best.id, best.student_id, best.student?.name || 'Student');
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                disabled={!!accepting}
+              >
+                Accept Best Match
+              </button>
+            </div>
+          )}
+          {isCompany && processedBids.some(b => b.status === 'accepted') && project.status === 'in-progress' && (
+            <div className="mt-4 p-4 bg-orange-50 border border-orange-100 rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-sm text-orange-800 font-medium">
+                  Need to change the selected bidder?
+                </p>
+                <p className="text-xs text-orange-700 mt-1">
+                  This will reopen the project and allow you to select a different student.
+                </p>
+              </div>
+              <button
+                onClick={handleChangeBidder}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              >
+                Change Bidder
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -555,7 +657,8 @@ ${user!.name}`,
                     <>
                       <button 
                         onClick={() => handleAcceptBid(bid.id, bid.student_id, bid.student?.name || 'Unknown Student')}
-                        className="flex items-center px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                        className="flex items-center px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                        disabled={accepting === bid.id}
                       >
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Accept

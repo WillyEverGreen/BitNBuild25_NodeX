@@ -39,6 +39,8 @@ const RegisterForm: React.FC = () => {
     }
 
     setLoading(true);
+    console.log('Starting registration...', { email: formData.email, type: formData.type });
+    
     try {
       // Extract password and confirmPassword before creating userData
       const { password, confirmPassword, ...userFormData } = formData;
@@ -57,10 +59,19 @@ const RegisterForm: React.FC = () => {
         total_spent: 0
       };
 
-      await register(userData, password);
+      console.log('Calling register function...');
       
+      // Add timeout to prevent infinite hang
+      const registerPromise = register(userData, password);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Registration timeout - please check your Supabase configuration')), 15000)
+      );
+      
+      await Promise.race([registerPromise, timeoutPromise]);
+      
+      console.log('Registration successful!');
       // Show success message for email verification
-      alert('Account created successfully! Please check your email to verify your account before signing in.');
+      alert('Account created successfully! You can now login.');
       navigate('/login');
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -73,11 +84,16 @@ const RegisterForm: React.FC = () => {
         msg = 'Password must be at least 6 characters long.';
       } else if (msg.includes('Invalid email')) {
         msg = 'Please enter a valid email address.';
+      } else if (msg.includes('row-level security')) {
+        msg = 'Database configuration error. Please contact support or try again later.';
+      } else if (msg.includes('timeout')) {
+        msg = 'Registration is taking too long. Please check your internet connection and try again.';
       }
       
       alert(msg);
     } finally {
       setLoading(false);
+      console.log('Registration process completed');
     }
   };
 
