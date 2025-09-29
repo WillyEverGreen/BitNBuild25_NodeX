@@ -141,7 +141,7 @@ const Header: React.FC = () => {
                 className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50"
               >
                 <img
-                  src={user.avatar || 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=150'}
+                  src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=3b82f6&color=fff`}
                   alt={user.name}
                   className="h-8 w-8 rounded-full object-cover"
                 />

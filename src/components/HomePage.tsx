@@ -108,7 +108,7 @@ const HomePage: React.FC = () => {
           <div className="relative">
             <div className="relative rounded-2xl overflow-hidden shadow-2xl">
               <img 
-                src="/home.jpg" 
+                src="https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=800" 
                 alt="Students collaborating on projects" 
                 className="w-full h-96 object-cover"
               />
