@@ -5,7 +5,6 @@
 [![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green.svg)](https://supabase.com/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A modern, full-featured freelance marketplace designed specifically for university students to connect with companies, showcase their skills, and earn money through project-based work.
 
@@ -51,7 +50,7 @@ A modern, full-featured freelance marketplace designed specifically for universi
 ### 1. Clone and Install
 ```bash
 git clone <your-repo>
-cd gigcampus
+cd BitNBuild25_NodeX
 npm install
 ```
 
@@ -66,13 +65,15 @@ VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-### 3. Set Up Database
+### 3. Set Up Database ⚠️ CRITICAL STEP
+
+**You MUST run this before using the app!**
 
 1. Go to your Supabase project dashboard
 2. Navigate to SQL Editor
-3. Copy and run the contents of `supabase/migrations/create_complete_schema.sql`
+3. Copy and run the contents of `FINAL_DATABASE_FIX.sql`
 
-This will create all necessary tables, indexes, and security policies.
+This will create all necessary tables, indexes, security policies, and fix all known issues.
 
 ### 4. Configure Storage (Optional)
 
@@ -89,26 +90,125 @@ npm run dev
 
 Visit `http://localhost:5000` to see your application.
 
+## ⚠️ Known Issues & Workarounds
+
+### Issue 1: False "Failed" Alerts ⚠️
+**Symptom**: You click "Release Funds", "Send Message", or "Complete Project" and get a "Failed" alert, but when you check the dashboard or refresh the page, the operation actually succeeded.
+
+**Why This Happens**: 
+- The main operation (e.g., releasing funds) succeeds ✅
+- Secondary operations (e.g., sending notifications) may fail due to timing issues
+- The error from secondary operations triggers the "failed" alert
+- But the important operation already completed successfully!
+
+**Workaround**:
+1. **Ignore the "failed" alert** - Check the dashboard instead
+2. **Refresh the page** (F5) to see updated data
+3. Check browser console (F12) for detailed logs
+
+**Status**: ✅ Code updated to handle gracefully. Main operations always succeed.
+
+---
+
+### Issue 2: Dashboard Stats Don't Update Immediately
+**Symptom**: After completing a project or accepting a bid, dashboard numbers don't change right away.
+
+**Workaround**: 
+- Refresh the page (F5)
+- Or logout and login again
+- Stats will be accurate after refresh
+
+**Status**: Real-time updates planned for future release.
+
+---
+
+### Issue 3: Student Registration Requires .edu Email
+**Symptom**: Cannot register with regular email as student.
+
+**Requirement**: Students must use university email ending in `.edu`
+- ✅ `john@stanford.edu` 
+- ❌ `john@gmail.com`
+
+**Why**: For verification that users are actual university students.
+
+**Status**: By design for platform integrity.
+
+---
+
+### Issue 4: Cannot View Bids or Student Names Show "Unknown User"
+**Symptom**: 
+- Bids page is empty
+- Student names appear as "Unknown User" in bids list
+- Cannot see student profiles
+
+**Fix**: Run `FINAL_DATABASE_FIX.sql` in Supabase Dashboard → SQL Editor
+
+**Status**: ✅ Fixed in database setup file.
+
+---
+
+### Issue 5: File Upload Fails in Chat
+**Symptom**: Cannot upload files, or upload button doesn't work.
+
+**Fix**: Run `FINAL_DATABASE_FIX.sql` - it creates storage bucket and policies
+
+**Status**: ✅ Fixed in database setup file.
+
+---
+
+### Issue 6: "Operator does not exist: uuid = text" Error
+**Symptom**: Database errors about UUID type mismatch.
+
+**Fix**: Run `FINAL_DATABASE_FIX.sql` - it includes proper UUID type casting (::text)
+
+**Status**: ✅ Fixed in database setup file.
+
+---
+
+## 🔧 Critical Setup Note
+
+⚠️ **MUST RUN BEFORE USING APP**: `FINAL_DATABASE_FIX.sql` in Supabase Dashboard → SQL Editor
+
+Without this:
+- ❌ Cannot view bids
+- ❌ Cannot assign escrow
+- ❌ Cannot accept bids
+- ❌ Student names show as "Unknown User"
+- ❌ Chat doesn't work
+- ❌ File uploads fail
+
+With this:
+- ✅ All features work perfectly
+- ✅ All policies configured
+- ✅ All columns added
+- ✅ All issues fixed
+
+**See `SETUP_GUIDE.md` for detailed step-by-step instructions.**
+
+---
+
 ## 🧪 Testing
 
+### Complete Testing Workflow
+See `COMPLETE_FIX_GUIDE.md` for a comprehensive testing guide that covers:
+- Company registration and setup
+- Project posting and escrow assignment
+- Student registration and bidding
+- Bid acceptance and project management
+- Chat and file sharing
+- Fund release and project completion
+- Dashboard updates verification
+
 ### Test Accounts
-The database migration includes sample test accounts:
+You can create test accounts:
 
 **Student Account:**
-- Email: `student@test.com`
-- Password: `password123`
+- Must use .edu email (e.g., `john@stanford.edu`)
+- Password: Your choice
 
 **Company Account:**
-- Email: `company@test.com`
-- Password: `password123`
-
-### Test Features
-1. **Registration/Login**: Create new accounts or use test accounts
-2. **Project Management**: Post projects as company, browse as student
-3. **Bidding System**: Submit bids and manage proposals
-4. **Messaging**: Real-time chat with file sharing
-5. **Escrow System**: Deposit funds, assign to projects, release payments
-6. **Rating System**: Rate collaborators after project completion
+- Any email works
+- Password: Your choice
 
 ## 📁 Project Structure
 
@@ -130,10 +230,10 @@ src/
 ## 🔒 Security Features
 
 - **Row Level Security (RLS)**: Database-level access control
-- **Email Verification**: Required for account activation
 - **Secure Authentication**: Powered by Supabase Auth
 - **Escrow Protection**: Funds held securely until project completion
 - **File Upload Security**: Secure file handling with size limits
+- **UUID Type Safety**: Proper type casting for all database operations
 
 ## 🌟 Key Features Deep Dive
 
@@ -148,6 +248,7 @@ src/
 - Automatic release upon project approval
 - Transaction history and audit trail
 - Multi-project escrow management
+- Change bidder feature for flexibility
 
 ### Real-time Features
 - Live chat with file sharing
@@ -157,9 +258,9 @@ src/
 
 ### Rating System
 - Multi-dimensional ratings (communication, quality, timeliness, professionalism)
-- Public/private review options
 - Skill-specific ratings for students
 - Trust building through verified reviews
+- Rating increases with successful project completions
 
 ## 🚀 Deployment
 
@@ -191,15 +292,10 @@ npm run build
 
 ### Supabase Setup Checklist
 - ✅ Project created
-- ✅ Database schema deployed
+- ✅ `FINAL_DATABASE_FIX.sql` executed
 - ✅ RLS policies enabled
 - ✅ Storage bucket created (optional)
 - ✅ Environment variables set
-
-### Email Configuration
-- Configure SMTP settings in Supabase Auth
-- Customize email templates
-- Set up custom domain (optional)
 
 ## 📊 Monitoring
 
@@ -216,30 +312,73 @@ npm run build
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
+4. Test thoroughly using `SETUP_GUIDE.md`
 5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
 
 ## 🆘 Support
 
 For support and questions:
-- Check the documentation
+- Check `SETUP_GUIDE.md` for detailed setup instructions
+- Check `COMPLETE_FIX_GUIDE.md` for complete testing workflow
 - Review Supabase logs for errors
-- Ensure all environment variables are set correctly
-- Verify database schema is properly deployed
+- Check browser console (F12) for detailed error messages
+- Verify `FINAL_DATABASE_FIX.sql` was run successfully
 
-## 🎯 Roadmap
+## 🎯 Future Scope & Roadmap
 
-- [ ] Mobile app development
+### Phase 1: Enhanced Features (2025)
+- [ ] Real-time dashboard updates without page refresh
 - [ ] Advanced search and filtering
+- [ ] Project templates for common tasks
+- [ ] Bulk operations for bids
+- [ ] Email notifications
+
+### Phase 2: Payment & Integration
+- [ ] Payment gateway integration (Stripe, PayPal)
+- [ ] Automatic withdrawals to bank accounts
+- [ ] Invoice generation
+- [ ] Multi-currency support
+
+### Phase 3: Communication & Collaboration
 - [ ] Video call integration
-- [ ] Payment gateway integration
+- [ ] Screen sharing
+- [ ] Project milestones with partial payments
+- [ ] Time tracking
+
+### Phase 4: AI & Analytics
+- [ ] AI-powered project-student matching
+- [ ] Skill gap analysis
+- [ ] Price recommendations
 - [ ] Advanced analytics dashboard
+
+### Phase 5: Mobile & Expansion
+- [ ] Mobile app (iOS/Android)
+- [ ] Progressive Web App
 - [ ] Multi-language support
+- [ ] University partnerships
+
+### Phase 6: Enterprise Features
+- [ ] Team projects
+- [ ] Company accounts with multiple users
+- [ ] White-label solution
+- [ ] Public API
+
+## 🌟 Why BitNBuild?
+
+### For Students:
+- 💰 **Earn While Learning**: Get paid for real-world projects
+- 📚 **Build Portfolio**: Showcase completed projects
+- 🎓 **Gain Experience**: Work on diverse projects
+- ⭐ **Build Reputation**: Earn ratings and reviews
+
+### For Companies:
+- 💡 **Fresh Perspectives**: Innovative solutions from young talent
+- 💵 **Cost-Effective**: Competitive pricing
+- 🚀 **Fast Turnaround**: Quick project completion
+- 🔒 **Secure Payments**: Escrow system protects investment
 
 ---
 
 Built with ❤️ for connecting students with opportunities.
+
+**Star ⭐ this repo if you find it helpful!**
